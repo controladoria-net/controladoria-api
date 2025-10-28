@@ -1,192 +1,222 @@
-# =====================================================
-# Script: file_reader.py
-# Autor: Walber Vidigal
-# Descrição:
-#   Lê todos os PDFs e imagens da pasta "pasta envio",
-#   envia diretamente para o modelo Gemini 2.0 Flash-Lite
-#   e salva as respostas na memória do agente (Redis),
-#   permitindo perguntas posteriores sobre os documentos.
-# =====================================================
+"""
+Script: file_reader.py
+Autor: Walber Vidigal
+Descrição:
+  Lê PDFs/imagens, envia ao modelo Gemini 2.0 Flash‑Lite
+  usando os Descriptors definidos em document.py,
+  permite escolher o tipo de documento (ou detectar),
+  e salva os resultados no Redis via GeminiAgent.
+"""
 
 import os
 import json
+import argparse
+from typing import Optional, Tuple
+
 from dotenv import load_dotenv
 import google.generativeai as genai
-from agent import GeminiAgent  # Importa o agente com memória
 
-# 1️⃣ Carrega variáveis de ambiente
+from agent import GeminiAgent
+from document import REGISTRY
+
+
+# 1) Configuração do modelo e caminhos
 load_dotenv()
 API_KEY = os.getenv("GEMINI_API_KEY")
-
 if not API_KEY:
-    raise ValueError("❌ Chave GEMINI_API_KEY não encontrada no .env")
+    raise ValueError("GEMINI_API_KEY não encontrada no .env")
 
-# 2️⃣ Configura o modelo Gemini 2.0 Flash-Lite
 genai.configure(api_key=API_KEY)
 MODEL_NAME = "models/gemini-2.0-flash-lite"
 
-# 3️⃣ Pasta onde estão os arquivos
-PASTA_ENVIO = "pasta envio"
-
-# 4️⃣ Prompt aprimorado de instruções
-PROMPT_BASE = """
-  Você é um analista jurídico especializado em processos de pescadores profissionais.
-  Analise o documento enviado (PDF ou imagem) e identifique se ele é um:
-  1️⃣ Certificado de Regularidade / Carteira RGP, ou
-  2️⃣ CAEPF (Cadastro de Atividade Econômica da Pessoa Física), ou
-  3️⃣ Comprovante de Residência, ou
-  4️⃣ CNIS (Cadastro Nacional de Informações Sociais).
-
-  ⚠️ Regras Gerais:
-  - Responda apenas com JSON válido.
-  - Se a informação não aparecer, escreva "Não disponível".
-  - Utilize datas no formato DD/MM/AAAA.
-  - Os documentos podem estar em formato PDF ou imagem (JPG/PNG).
-  - Sempre identifique o tipo de documento com base nos termos mais evidentes no conteúdo.
-
-  📜 Regras específicas:
-
-  - Para Certificado de Regularidade (Carteira RGP):
-    - Procure expressões como "Certificado de Registro", "RGP", "Registro Geral da Pesca".
-    - Retorne apenas a data do primeiro registro, normalmente indicada por "Data do Primeiro Registro" ou similar.
-
-  - Para CAEPF:
-    - Procure expressões como "Cadastro de Atividade Econômica da Pessoa Física" ou "CAEPF".
-    - Identifique a data de início da atividade e, se disponível, o tipo de pesca (Água Doce, Água Salgada, etc.).
-
-  - Para Comprovantes de Residência (contas de energia, água, telefone, etc.):
-    - Procure e retorne **a data de vencimento da fatura** como `Data_vencimento`.
-    - Use expressões como “Vencimento”, “Venc.”, “Data de Venc.” ou similares.
-    - Priorize essa data mesmo que haja outras datas (emissão, leitura, referência, etc.).
-    - Inclua também nome do titular e endereço se disponíveis.
-
-  - Para CNIS (Cadastro Nacional de Informações Sociais):
-    - Procure expressões como "CNIS", "Cadastro Nacional de Informações Sociais", "Extrato Previdenciário" ou "INSS".
-    - Extraia:
-      - Nome completo do segurado.
-      - CPF e NIT.
-      - Vínculos empregatícios, incluindo nome da empresa, CNPJ, e datas de início e fim.
-      - Indicação de segurado especial, se constar.
-    - Verifique se há **período aquisitivo do defeso**, considerando os 12 meses anteriores à data mais recente do extrato.
-    - Utilize a data mais recente do documento (ex: data do extrato ou data final de vínculo) como referência para cálculo do período aquisitivo.
-    - Caso apareçam benefícios ativos ou outros vínculos, liste-os.
-
-  📘 Campos esperados:
-
-  - Se for um Certificado de Regularidade:
-    {
-      "CERTIFICADO_DE_REGULARIDADE": {
-        "Data_primeiro_registro": "..."
-      }
-    }
-
-  - Se for um CAEPF:
-    {
-      "CAEPF": {
-        "Data_inicio_atividade": "...",
-        "Tipo_pesca": "(Água doce, Água salgada, ou Não disponível)"
-      }
-    }
-
-  - Se for um Comprovante de Residência (como contas de energia, água, telefone, etc.):
-    {
-      "COMPROVANTE_DE_RESIDENCIA": {
-        "Data_vencimento": "..."
-      }
-    }
-
-  - Se for um CNIS (Cadastro Nacional de Informações Sociais):
-    {
-      "CNIS": {
-        "Nome": "...",
-        "CPF": "...",
-        "NIT": "...",
-        "Vinculos_empregaticios": [
-          {
-            "Empresa": "...",
-            "CNPJ": "...",
-            "Data_inicio": "...",
-            "Data_fim": "...",
-            "Tipo_vinculo": "(Empregado, Segurado Especial, etc.)"
-          }
-        ],
-        "Possui_beneficio_ativo": "(Sim ou Não)",
-        "Periodo_aquisitivo_defeso": {
-          "Data_inicio": "...",
-          "Data_fim": "..."
-        }
-      }
-    }
-"""
+# Por padrão, considera a pasta 'pasta envio' na raiz do projeto (fora de src)
+DEFAULT_PASTA_ENVIO = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), os.pardir, "pasta envio")
+)
 
 
+def _build_generation_config(**overrides):
+    base = dict(temperature=0.2, top_p=0.3, top_k=1, max_output_tokens=1024)
+    base.update(overrides)
+    return genai.types.GenerationConfig(**base)
 
-# 5️⃣ Função principal
-def analisar_arquivos():
-    # Inicializa o agente com memória
+
+# 2) Detecção automática do tipo de documento (opcional)
+def detectar_tipo_documento(uploaded_file) -> Optional[str]:
+    opcoes = list(REGISTRY.keys())
+    lista_opcoes = "\n".join(f"- {k}" for k in opcoes)
+    prompt = (
+        "Você é um classificador de documentos. Escolha o tipo que melhor "
+        "representa o arquivo enviado a partir da lista. Responda somente "
+        "com JSON válido no formato {\"tipo\": <string ou null>} onde o valor "
+        "de 'tipo' deve ser exatamente uma das chaves abaixo.\n\n"
+        f"Tipos disponíveis:\n{lista_opcoes}\n"
+    )
+
+    model = genai.GenerativeModel(MODEL_NAME)
+    try:
+        response = model.generate_content(
+            [prompt, uploaded_file],
+            generation_config=_build_generation_config(
+                temperature=0.0, response_mime_type="application/json"
+            ),
+        )
+        texto = (response.text or "").strip()
+        if texto.startswith("```"):
+            texto = texto.replace("```json", "").replace("```", "").strip()
+        data = json.loads(texto)
+        tipo = data.get("tipo")
+        if tipo in REGISTRY:
+            return tipo
+        return None
+    except Exception:
+        return None
+
+
+# 3) Análise com um Descriptor específico
+def analisar_com_descriptor(uploaded_file, descriptor) -> Tuple[dict, str]:
+    # Ideal: usar system_instruction do Descriptor
+    model = genai.GenerativeModel(
+        MODEL_NAME, system_instruction=descriptor.system_instruction
+    )
+
+    # Tenta usar JSON mode (quando disponível); caso falhe, volta ao básico
+    gen_cfg_kwargs = {}
+    if getattr(descriptor, "response_mime_type", None):
+        gen_cfg_kwargs["response_mime_type"] = descriptor.response_mime_type
+
+    config = _build_generation_config(**gen_cfg_kwargs)
+
+    response = model.generate_content([uploaded_file], generation_config=config)
+    texto = (response.text or "").strip()
+    if texto.startswith("```"):
+        texto = texto.replace("```json", "").replace("```", "").strip()
+
+    try:
+        parsed = json.loads(texto)
+    except json.JSONDecodeError:
+        parsed = {"raw": texto}
+
+    return parsed, texto
+
+
+# 4) Execução principal sobre a pasta
+def analisar_arquivos(pasta_envio: str, tipo_forcado: Optional[str] = None, auto: bool = False):
     agente = GeminiAgent(user_id="walber_local")
 
-    resultados = {}
-    arquivos = [f for f in os.listdir(PASTA_ENVIO) if f.lower().endswith((".pdf", ".png", ".jpg", ".jpeg"))]
+    if not os.path.isdir(pasta_envio):
+        raise FileNotFoundError(f"Pasta não encontrada: {pasta_envio}")
+
+    arquivos = [
+        f
+        for f in os.listdir(pasta_envio)
+        if f.lower().endswith((".pdf", ".png", ".jpg", ".jpeg"))
+    ]
 
     if not arquivos:
-        print("⚠️ Nenhum arquivo encontrado na pasta:", PASTA_ENVIO)
+        print(f"Nenhum arquivo encontrado em: {pasta_envio}")
         return
 
-    print(f"📂 {len(arquivos)} arquivo(s) encontrados na pasta '{PASTA_ENVIO}'. Enviando para análise...\n")
+    resultados: dict[str, dict] = {}
+    print(f"{len(arquivos)} arquivo(s) encontrados em '{pasta_envio}'.\n")
 
     for arquivo in arquivos:
-        caminho = os.path.join(PASTA_ENVIO, arquivo)
-        print(f"📤 Enviando '{arquivo}' para o modelo...")
+        caminho = os.path.join(pasta_envio, arquivo)
+        print(f"Enviando '{arquivo}' para análise...")
 
         try:
-            # Faz upload do arquivo para o Gemini
-            uploaded_file = genai.upload_file(caminho)
+            uploaded = genai.upload_file(caminho)
 
-            # Envia o arquivo + prompt ao modelo
-            model = genai.GenerativeModel(MODEL_NAME)
-            response = model.generate_content(
-                [PROMPT_BASE, uploaded_file],
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0.2,
-                    top_p=0.3,
-                    top_k=1,
-                    max_output_tokens=1024
+            # Seleção do tipo
+            tipo_escolhido = tipo_forcado
+            if not tipo_escolhido and auto:
+                tipo_escolhido = detectar_tipo_documento(uploaded)
+
+            if not tipo_escolhido:
+                print(
+                    "Não foi possível detectar o tipo automaticamente ou nenhum tipo foi informado. "
+                    "Pulando arquivo."
                 )
+                resultados[arquivo] = {"erro": "tipo não identificado"}
+                continue
+
+            descriptor = REGISTRY[tipo_escolhido]
+            resultado_json, resposta_texto = analisar_com_descriptor(uploaded, descriptor)
+
+            # Persistência de memória no agente (Redis)
+            contexto = (
+                f"O documento '{arquivo}' foi analisado como {descriptor.name}.\n"
+                f"Resultado:\n{json.dumps(resultado_json, ensure_ascii=False, indent=2)}"
             )
+            agente.agente_responde(contexto)
 
-            resposta = response.text.strip() if response.text else "Sem resposta"
-
-            # 🧩 Limpa blocos de código Markdown
-            if resposta.startswith("```"):
-                resposta = resposta.replace("```json", "").replace("```", "").strip()
-
-            # 🧠 Tenta converter em JSON válido
-            try:
-                resposta_json = json.loads(resposta)
-                resultados[arquivo] = resposta_json
-            except json.JSONDecodeError:
-                resultados[arquivo] = resposta
-
-            # 🔹 Armazena o contexto no Redis via agente
-            contexto_memoria = f"O documento '{arquivo}' foi analisado e retornou os seguintes dados:\n{resposta}"
-            agente.agente_responde(contexto_memoria)
-
-            print(f"✅ Análise concluída e registrada na memória para '{arquivo}'.\n")
-
+            resultados[arquivo] = {
+                "tipo": tipo_escolhido,
+                "resultado": resultado_json,
+            }
+            print(f"OK: '{arquivo}' analisado e registrado.\n")
 
         except Exception as e:
-            resultados[arquivo] = f"❌ Erro: {str(e)}"
-            print(f"❌ Falha ao analisar '{arquivo}': {str(e)}\n")
+            resultados[arquivo] = {"erro": str(e)}
+            print(f"Falha ao analisar '{arquivo}': {e}\n")
 
-    # Salva resultados em JSON local
+    # Salva resultados agregados
     with open("resultado_analise.json", "w", encoding="utf-8") as f:
         json.dump(resultados, f, ensure_ascii=False, indent=2)
 
-    print("📑 Análises concluídas e salvas em 'resultado_analise.json'.")
-    print("🧠 Contextos também armazenados na memória do agente (Redis).")
+    print("Resultados salvos em 'resultado_analise.json'.")
+    print("Contextos também armazenados na memória do agente (Redis).")
 
 
-# 6️⃣ Executar script diretamente
+def _parse_args():
+    parser = argparse.ArgumentParser(description="Analisa documentos usando Gemini e Descriptors.")
+    parser.add_argument(
+        "--pasta",
+        default=DEFAULT_PASTA_ENVIO,
+        help=f"Pasta com PDFs/Imagens (padrão: {DEFAULT_PASTA_ENVIO})",
+    )
+    parser.add_argument(
+        "--tipo",
+        choices=sorted(REGISTRY.keys()),
+        help="Força o tipo de documento a ser usado na análise.",
+    )
+    parser.add_argument(
+        "--auto",
+        action="store_true",
+        help="Detecta automaticamente o tipo por arquivo e analisa com o Descriptor correspondente.",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    analisar_arquivos()
+    args = _parse_args()
+
+    # Se nenhum tipo e sem auto, oferece seleção rápida via entrada padrão
+    doc_type = args.tipo
+    if not doc_type and not args.auto:
+        chaves = list(REGISTRY.keys())
+        print("Selecione o tipo de documento (ou 0 para Auto):")
+        for i, k in enumerate(chaves, start=1):
+            desc = REGISTRY[k]
+            label = f"{k}"
+            if getattr(desc, "sigla", None):
+                label += f" ({desc.sigla})"
+            print(f"[{i}] {label} - {desc.name}")
+        print("[0] Auto-detectar por arquivo")
+        try:
+            escolha = int(input("Sua escolha: ").strip() or "0")
+        except ValueError:
+            escolha = 0
+        if escolha == 0:
+            doc_type = None
+            auto = True
+        elif 1 <= escolha <= len(chaves):
+            doc_type = chaves[escolha - 1]
+            auto = False
+        else:
+            doc_type = None
+            auto = True
+    else:
+        auto = bool(args.auto)
+
+    analisar_arquivos(pasta_envio=args.pasta, tipo_forcado=doc_type, auto=auto)
