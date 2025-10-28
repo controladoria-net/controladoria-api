@@ -1,5 +1,7 @@
 from agent import GeminiAgent
 
+
+
 # Identificação do usuário (pode ser ID, e-mail, etc.)
 agente = GeminiAgent(user_id="walber_local")
 
