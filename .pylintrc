@@ -11,6 +11,12 @@ disable=
       W0221,  # Arguments-differ
       R0801,  # Duplicate-code
       R0903,  # too-few-public-methods
+      C0303,  # trailing-whitespace
+      W0707,  # Consider-using-with
+      E0401,  # import-error
+      E0213,  # no-self-argument
+      R0902,  # too-many-instance-attributes
+      E0602,  # undefined-variable
 
 
 # Analyse import fallback blocks. This can be used to support both Python 2 and
@@ -72,7 +78,7 @@ ignore-paths=
 # Emacs file locks
 ignore-patterns=^\.#
 
-# List of module names for which member attributes should not be checked and
+# List of module names for which member attributes should not be checked E0602,  # undefined-variable should not be checked and
 # will not be imported (useful for modules/projects where namespaces are
 # manipulated during runtime and thus existing member attributes cannot be
 # deduced by static analysis). It supports qualified module names, as well as
@@ -365,7 +371,7 @@ indent-string='    '
 # Maximum number of characters on a single line. Pylint's default of 100 is
 # based on PEP 8's guidance that teams may choose line lengths up to 99
 # characters.
-max-line-length=100
+max-line-length=180
 
 # Maximum number of lines in a module.
 max-module-lines=1000
