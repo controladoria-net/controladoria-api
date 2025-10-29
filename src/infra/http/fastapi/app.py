@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -6,8 +7,24 @@ from fastapi.exceptions import RequestValidationError
 from infra.http.dto.general_response_dto import GeneralResponseDTO
 from infra.http.fastapi.router import legal_cases_router
 
+from infra.http.fastapi.router import classificador_router
+from infra.factories.classificador_factory import get_classificador_gateway
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        get_classificador_gateway()
+    except Exception as e:
+        # Loga o erro crítico, mas permite a API subir
+        # Em produção, você pode querer impedir o startup se o gateway for essencial
+        print(f"ERRO CRÍTICO NA INICIALIZAÇÃO DO GATEWAY: {e}")
+        print("A API iniciará, mas o endpoint /processar/ falhará até o gateway ser corrigido.")
+    
+    yield
 
 app = FastAPI(
+    lifespan=lifespan,
     title="API para gestão de tarefas de um escritório de advocacia",
     version="1.0.0",
     docs_url="/docs",
@@ -38,6 +55,7 @@ async def get_validation_exception_handler(_, exc: RequestValidationError):
     )
 
 
+
 app.add_exception_handler(
     RequestValidationError, handler=get_validation_exception_handler
 )
@@ -53,3 +71,4 @@ async def root():
 
 
 app.include_router(legal_cases_router.router)
+app.include_router(classificador_router.router)
