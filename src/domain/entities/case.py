@@ -3,9 +3,10 @@ import re
 from typing import List
 from datetime import datetime
 
+PATTERN = re.compile(r"^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$")
+
 
 def format_cnj_number(clean_number: str) -> str:
-    """Formats a 20-digit string into the standard CNJ format."""
     if not re.match(r"^\d{20}$", clean_number):
         raise ValueError("Input must be a string with exactly 20 digits.")
     p1 = clean_number[0:7]
@@ -19,20 +20,15 @@ def format_cnj_number(clean_number: str) -> str:
 
 @dataclass(frozen=True)
 class CNJNumber:
-    """A Value Object representing a validated CNJ legal case number."""
-
     number: str
 
     @classmethod
     def from_raw(cls, raw_number: str) -> "CNJNumber":
-        """Factory method to create an instance from a raw 20-digit string."""
         formatted_number = format_cnj_number(raw_number)
         return cls(number=formatted_number)
 
     def __post_init__(self):
-        """Validates the formatted number after the object is created."""
-        pattern = re.compile(r"^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$")
-        if not pattern.match(self.number):
+        if not PATTERN.match(self.number):
             # This validation is a safeguard, but format_cnj_number should prevent this.
             raise ValueError("Invalid CNJ number format after formatting.")
 

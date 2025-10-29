@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, Tuple, Optional
 from src.domain.entities.case import CNJNumber, LegalCase
 from src.domain.gateway.legal_case_gateway import LegalCaseGateway
@@ -71,6 +72,8 @@ COURT_CODE_MAP: Dict[Tuple[str, str], str] = {
     ("8", "27"): "tjto",  # Tocantins
 }
 
+logger = logging.getLogger(__name__)
+
 
 class FindLegalCaseUseCase:
     def __init__(self, gateway: LegalCaseGateway):
@@ -86,23 +89,25 @@ class FindLegalCaseUseCase:
             court_acronym = COURT_CODE_MAP.get((judiciary_code, court_code))
 
             if not court_acronym:
-                print(
-                    f"Error: Court combination J='{judiciary_code}', TR='{court_code}' is not mapped."
+                logger.error(
+                    "Court combination J='%s', TR='%s' is not mapped.",
+                    judiciary_code,
+                    court_code,
                 )
                 return None
 
-            print(
-                f"INFO: Identified court as {court_acronym.upper()}. Querying gateway..."
+            logger.info(
+                "Identified court as %s. Querying gateway...", court_acronym.upper()
             )
             return self.gateway.find_case_by_number(
                 case_number=cnj_identifier, court_acronym=court_acronym
             )
 
         except ValueError as e:
-            print(
-                f"ERROR: Validation failed for number '{raw_case_number}'. Details: {e}"
+            logger.error(
+                "Validation failed for number '%s'. Details: %s", raw_case_number, e
             )
             return None
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            logger.error("An unexpected error occurred: %s", e)
             return None

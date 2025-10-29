@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Dict, Optional
 from dotenv import load_dotenv
@@ -11,19 +12,16 @@ from src.infra.external.mapper.legal_case_mapper import LegalCaseMapper
 load_dotenv()
 DATAJUD_API_KEY = os.getenv("DATAJUD_API_KEY")
 DATAJUD_URL = os.getenv("DATAJUD_URL")
+logger = logging.getLogger(__name__)
 
 
 class DataJudGateway(LegalCaseGateway):
-    """
-    Implementação do gateway que consulta a API DataJud do CNJ.
-    """
 
     def __init__(self):
         self.api_key = DATAJUD_API_KEY
         self.base_url = DATAJUD_URL
 
     def _get_headers(self) -> Dict[str, str]:
-        """Cria o cabeçalho padrão para as requisições."""
         return {
             "Authorization": f"ApiKey {self.api_key}",
             "Content-Type": "application/json",
@@ -41,13 +39,14 @@ class DataJudGateway(LegalCaseGateway):
             response.raise_for_status()
             data = response.json()
             if hits := data.get("hits", {}).get("hits", []):
-                print(
-                    f"-> Processo encontrado em {court_acronym.upper()}! Mapeando dados..."
+                logger.info(
+                    "Processo encontrado em %s! Mapeando dados...",
+                    court_acronym.upper(),
                 )
                 dto = LegalCaseRawDTO.from_dict(hits[0]["_source"])
                 return LegalCaseMapper.from_dto_to_domain(dto)
         except requests.exceptions.RequestException as e:
-            print(f"-> Erro ao consultar {court_acronym.upper()}: {e}")
+            logger.error("Erro ao consultar %s: %s", court_acronym.upper(), e)
 
-        print("-> Processo não encontrado em nenhum tribunal.")
+        logger.warning("Processo não encontrado em nenhum tribunal.")
         return None
