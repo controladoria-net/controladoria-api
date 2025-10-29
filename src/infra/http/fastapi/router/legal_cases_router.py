@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Body
 
-from infra.factories.create_legal_case_gateway import create_legal_case_gateway
-from infra.http.dto.general_response_dto import GeneralResponseDTO
-from infra.http.dto.legal_case_request_dto import LegalCaseRequestDTO
+from src.infra.http.dto.general_response_dto import GeneralResponseDTO
+from src.infra.http.dto.legal_case_request_dto import LegalCaseRequestDTO
+from src.infra.factories.create_find_legal_case_use_case import (
+    create_find_legal_case_use_case,
+)
 
 router = APIRouter(prefix="/processos", tags=["Processos"])
 
@@ -32,12 +34,12 @@ async def find_legal_cases(request_dto: LegalCaseRequestDTO = Body(...)):
     success_results = []
     error_list = []
 
-    gateway = create_legal_case_gateway()
+    use_case = create_find_legal_case_use_case()
 
     for number in request_dto.process_numbers:
         print(f"INFO: Consultando API externa para {number}")
         try:
-            legal_case = gateway.find_case_by_number(number)
+            legal_case = use_case.execute(number)
 
             if legal_case:
                 success_results.append(legal_case)

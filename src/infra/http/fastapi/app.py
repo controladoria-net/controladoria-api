@@ -3,8 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 
-from infra.http.dto.general_response_dto import GeneralResponseDTO
-from infra.http.fastapi.router import legal_cases_router
+from src.infra.http.dto.general_response_dto import GeneralResponseDTO
+from src.infra.http.fastapi.router import legal_cases_router
 
 
 app = FastAPI(

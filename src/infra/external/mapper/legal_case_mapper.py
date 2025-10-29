@@ -1,8 +1,8 @@
 from typing import Optional, List
 from datetime import datetime
 
-from domain.entities.case import LegalCase, Movement
-from infra.external.dto.legal_case_dto import LegalCaseRawDTO, MovimentoDTO
+from src.domain.entities.case import LegalCase, Movement
+from src.infra.external.dto.legal_case_dto import LegalCaseRawDTO, MovimentoDTO
 
 
 class LegalCaseMapper:
