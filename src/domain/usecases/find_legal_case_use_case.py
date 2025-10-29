@@ -1,6 +1,4 @@
-from typing import Dict, Tuple
-from typing import Optional
-
+from typing import Dict, Tuple, Optional
 from src.domain.entities.case import CNJNumber, LegalCase
 from src.domain.gateway.legal_case_gateway import LegalCaseGateway
 
