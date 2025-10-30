@@ -1,7 +1,7 @@
 from typing import Optional, List
 from datetime import datetime
 
-from src.domain.entities.case import LegalCase, Movement
+from src.domain.entities.case import CNJNumber, LegalCase, Movement
 from src.infra.external.dto.legal_case_dto import LegalCaseRawDTO, MovimentoDTO
 
 
@@ -43,15 +43,17 @@ class LegalCaseMapper:
             else "Nenhuma movimentação encontrada"
         )
         return LegalCase(
-            case_number=dto.numero_processo or "Não informado",
-            court=dto.tribunal or "Não informado",
-            judging_body=(
-                dto.orgao_julgador.nome if dto.orgao_julgador else "Não informado"
+            case_number=(
+                CNJNumber.from_raw(dto.numero_processo).number
+                if dto.numero_processo
+                else None
             ),
-            procedural_class=dto.classe.nome if dto.classe else "Não informado",
-            subject=dto.assuntos[0].nome if dto.assuntos else "Não informado",
-            status=dto.grau or "Desconhecida",
+            court=dto.tribunal or None,
+            judging_body=(dto.orgao_julgador.nome if dto.orgao_julgador else None),
+            procedural_class=dto.classe.nome if dto.classe else None,
+            subject=dto.assuntos[0].nome if dto.assuntos else None,
+            status=dto.grau or None,
             filing_date=LegalCaseMapper._parse_datetime(dto.data_ajuizamento),
-            latest_update=latest_update,
-            movement_history=movements,
+            latest_update=latest_update or None,
+            movement_history=movements if len(movements) > 0 else None,
         )

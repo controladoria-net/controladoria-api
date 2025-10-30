@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import re
-from typing import List
+from typing import Optional
 from datetime import datetime
 
 PATTERN = re.compile(r"^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$")
@@ -66,12 +66,12 @@ class Movement:
 
 @dataclass
 class LegalCase:
-    case_number: CNJNumber
-    court: str
-    judging_body: str
-    procedural_class: str
-    subject: str
-    status: str
-    filing_date: datetime
-    latest_update: str
-    movement_history: List[Movement]
+    case_number: Optional[CNJNumber]
+    court: Optional[str]
+    judging_body: Optional[str]
+    procedural_class: Optional[str]
+    subject: Optional[str]
+    status: Optional[str]
+    filing_date: Optional[str]
+    latest_update: Optional[str]
+    movement_history: Optional[str]
