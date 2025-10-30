@@ -1,7 +1,6 @@
-from ast import List
 from dataclasses import dataclass
 import re
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 PATTERN = re.compile(r"^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$")
