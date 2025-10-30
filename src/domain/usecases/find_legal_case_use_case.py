@@ -1,7 +1,10 @@
-import logging
 from typing import Dict, Tuple, Optional
+
+from src.domain.core.logger import logging
 from src.domain.entities.case import CNJNumber, LegalCase
 from src.domain.gateway.legal_case_gateway import LegalCaseGateway
+
+logger = logging.getLogger(__name__)
 
 
 COURT_CODE_MAP: Dict[Tuple[str, str], str] = {
@@ -72,8 +75,6 @@ COURT_CODE_MAP: Dict[Tuple[str, str], str] = {
     ("8", "27"): "tjto",  # Tocantins
 }
 
-logger = logging.getLogger(__name__)
-
 
 class FindLegalCaseUseCase:
     def __init__(self, gateway: LegalCaseGateway):
@@ -90,14 +91,17 @@ class FindLegalCaseUseCase:
 
             if not court_acronym:
                 logger.error(
-                    "Court combination J='%s', TR='%s' is not mapped.",
+                    "Combinação J='%s', TR='%s' não está mapeada para o CNJ '%s'.",
                     judiciary_code,
                     court_code,
+                    cnj_identifier.number,
                 )
                 return None
 
             logger.info(
-                "Identified court as %s. Querying gateway...", court_acronym.upper()
+                "Tribunal identificado como %s. Consultando com o CNJ '%s'",
+                court_acronym.upper(),
+                cnj_identifier.number,
             )
             return self.gateway.find_case_by_number(
                 case_number=cnj_identifier, court_acronym=court_acronym
@@ -105,9 +109,9 @@ class FindLegalCaseUseCase:
 
         except ValueError as e:
             logger.error(
-                "Validation failed for number '%s'. Details: %s", raw_case_number, e
+                "Falha na validação do número '%s'. Details: %s", raw_case_number, e
             )
             return None
         except Exception as e:
-            logger.error("An unexpected error occurred: %s", e)
+            logger.error("Ocorreu um erro inesperado: %s", e)
             return None

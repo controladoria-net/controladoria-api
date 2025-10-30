@@ -1,6 +1,6 @@
-import logging
 from fastapi import APIRouter, Body
 
+from src.domain.core.logger import logging
 from src.infra.http.dto.general_response_dto import GeneralResponseDTO
 from src.infra.http.dto.legal_case_request_dto import LegalCaseRequestDTO
 from src.infra.factories.create_find_legal_case_use_case import (

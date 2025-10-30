@@ -1,10 +1,10 @@
-import logging
 import os
 from typing import Dict, Optional
 from dotenv import load_dotenv
 import requests
 
 from src.domain.entities.case import CNJNumber, LegalCase
+from src.domain.core.logger import logging
 from src.domain.gateway.legal_case_gateway import LegalCaseGateway
 from src.infra.external.dto.legal_case_dto import LegalCaseRawDTO
 from src.infra.external.mapper.legal_case_mapper import LegalCaseMapper
@@ -48,5 +48,8 @@ class DataJudGateway(LegalCaseGateway):
         except requests.exceptions.RequestException as e:
             logger.error("Erro ao consultar %s: %s", court_acronym.upper(), e)
 
-        logger.warning("Processo não encontrado em nenhum tribunal.")
+        logger.warning(
+            "Processo não encontrado em nenhum tribunal para o CNJ '%s'.",
+            case_number.number,
+        )
         return None
