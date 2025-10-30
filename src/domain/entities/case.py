@@ -1,3 +1,4 @@
+from ast import List
 from dataclasses import dataclass
 import re
 from typing import Optional
@@ -66,12 +67,12 @@ class Movement:
 
 @dataclass
 class LegalCase:
-    case_number: Optional[CNJNumber]
+    case_number: Optional[str]
     court: Optional[str]
     judging_body: Optional[str]
     procedural_class: Optional[str]
     subject: Optional[str]
     status: Optional[str]
-    filing_date: Optional[str]
+    filing_date: Optional[datetime]
     latest_update: Optional[str]
-    movement_history: Optional[str]
+    movement_history: Optional[List[Movement]]

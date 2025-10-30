@@ -54,6 +54,6 @@ class LegalCaseMapper:
             subject=dto.assuntos[0].nome if dto.assuntos else None,
             status=dto.grau or None,
             filing_date=LegalCaseMapper._parse_datetime(dto.data_ajuizamento),
-            latest_update=latest_update or None,
-            movement_history=movements if len(movements) > 0 else None,
+            latest_update=latest_update,
+            movement_history=movements if movements else None,
         )
