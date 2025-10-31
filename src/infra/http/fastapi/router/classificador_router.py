@@ -6,8 +6,6 @@ import shutil
 
 from ....factories.classificador_factory import create_classificar_documentos_usecase
 from domain.entities.documento import DocumentoProcessar, ResultadoClassificacao
-from domain.entities.categorias import CategoriaDocumento
-
 # Cria um router específico para o classificador
 router = APIRouter(
     prefix="/classificador",
