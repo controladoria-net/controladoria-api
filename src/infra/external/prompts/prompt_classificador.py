@@ -44,12 +44,12 @@ CARACTERÍSTICAS: Declaração de Residência (Pessoa Alfabetizada) para o Minis
   indicando o NIT, a origem do vínculo (empresa), o tipo de filiado (Empregado ou Agente Público), 
   e as datas de início e fim desses vínculos. Ele também informa a data de nascimento do filiado 
   e as regras sobre a revisão das informações e o reconhecimento do tempo de contribuição.
-CARCATERÍSTICAS: Identificação do Filiado (INSS) com o Número de Identificação do Trabalhador (NIT)
+CARACTERÍSTICAS: Identificação do Filiado (INSS) com o Número de Identificação do Trabalhador (NIT)
   e o extrato de Relações Previdenciárias do CNIS que lista vínculos empregatícios com 
   datas de início e fim e informa sobre a autenticidade, a possibilidade de revisão 
   a qualquer tempo e as regras de reconhecimento de tempo de contribuição.
 
-* `TERMO_DE_REPRESENTAÇÃO`: Este é um Termo de RepresentAÇÃO e Autorização 
+* `TERMO_DE_REPRESENTAÇÃO`: Este é um Termo de Representação e Autorização 
 de Acesso a Informações Previdenciárias , conforme a Portaria Conjunta N° 3/DIRAT/DIRBEN/INSS. 
 Nele, o segurado confere poderes específicos a um advogado para representá-lo perante o INSS 
 (Previdência Social) e autoriza o acesso às informações pessoais necessárias.

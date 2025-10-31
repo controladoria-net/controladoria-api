@@ -1,4 +1,4 @@
-from typing import List, Dict, Type
+from typing import List, Dict
 from ..entities.documento import DocumentoProcessar, ResultadoClassificacao
 from ..entities.categorias import CategoriaDocumento
 from ..gateway.classificador_gateway import IClassificadorGateway

@@ -16,10 +16,8 @@ async def lifespan(app: FastAPI):
     try:
         get_classificador_gateway()
     except Exception as e:
-        # Loga o erro crítico, mas permite a API subir
-        # Em produção, você pode querer impedir o startup se o gateway for essencial
-        print(f"ERRO CRÍTICO NA INICIALIZAÇÃO DO GATEWAY: {e}")
-        print("A API iniciará, mas o endpoint /processar/ falhará até o gateway ser corrigido.")
+        # adicionar log de erro
+        pass
     
     yield
 
