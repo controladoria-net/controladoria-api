@@ -1,0 +1,30 @@
+name: 'controladoria.prod'
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform:
+    uses: ./.github/workflows/terraform.yml
+    with:
+      environment: prod
+      aws-region: 'sa-east-1'
+      aws-assume-role-arn: 'arn:aws:iam::SUA_CONTA_AWS:role/NOME_DA_SUA_ROLE'
+      aws-statefile-s3-bucket: 'NOME_DO_SEU_BUCKET_S3'
+      aws-lock-dynamodb-table: 'NOME_DA_SUA_TABELA_DYNAMODB'
+      key_name: 'controladoria-prod-key'
+      domain_name: 'api.controladoria.net.br'
+
+    secrets:
+      KEYCLOAK_ADMIN_PASSWORD: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      KEYCLOAK_ADMIN_USER: ${{ secrets.KEYCLOAK_ADMIN_USER }}
+      DB_USER: ${{ secrets.DB_USER }}
+      CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL }}
+      MY_IP: ${{ secrets.MY_IP }}
