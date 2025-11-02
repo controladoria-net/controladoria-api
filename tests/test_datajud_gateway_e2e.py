@@ -30,7 +30,7 @@ def test_datajud_gateway_maps_formatted_case_number(monkeypatch):
     def fake_post(url, headers, json, timeout):
         assert url == f"{gateway.base_url}/api_publica_tjal/_search"
         assert headers["Authorization"] == "ApiKey dummy-key"
-        assert json == {"query": {"match": {"numeroProcesso": "07108025520188020001"}}}
+        assert json == {"query": {"match": {"numeroProcesso": cnj.clean_number}}}
         assert timeout == 15
 
         class FakeResponse:
