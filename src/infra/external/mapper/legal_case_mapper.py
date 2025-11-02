@@ -7,6 +7,26 @@ from src.infra.external.dto.legal_case_dto import LegalCaseRawDTO, MovimentoDTO
 
 class LegalCaseMapper:
     @staticmethod
+    def _map_case_number(raw_case_number: Optional[str]) -> Optional[str]:
+        if not raw_case_number:
+            return None
+
+        case_number = raw_case_number.strip()
+        if not case_number:
+            return None
+
+        if case_number.isdigit():
+            try:
+                return CNJNumber.from_raw(case_number).number
+            except ValueError:
+                return case_number
+
+        try:
+            return CNJNumber(number=case_number).number
+        except ValueError:
+            return case_number
+
+    @staticmethod
     def _parse_datetime(date_string: Optional[str]) -> datetime:
         if not date_string:
             return datetime.min
@@ -43,11 +63,7 @@ class LegalCaseMapper:
             else "Nenhuma movimentação encontrada"
         )
         return LegalCase(
-            case_number=(
-                CNJNumber.from_raw(dto.numero_processo).number
-                if dto.numero_processo
-                else None
-            ),
+            case_number=LegalCaseMapper._map_case_number(dto.numero_processo),
             court=dto.tribunal or None,
             judging_body=(dto.orgao_julgador.nome if dto.orgao_julgador else None),
             procedural_class=dto.classe.nome if dto.classe else None,
