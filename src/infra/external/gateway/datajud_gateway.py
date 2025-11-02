@@ -49,7 +49,8 @@ class DataJudGateway(LegalCaseGateway):
             logger.error("Erro ao consultar %s: %s", court_acronym.upper(), e)
 
         logger.warning(
-            "Processo não encontrado em nenhum tribunal para o CNJ '%s'.",
+            "Processo não encontrado no tribunal %s para o CNJ '%s'.",
+            court_acronym.upper(),
             case_number.number,
         )
         return None
