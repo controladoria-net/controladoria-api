@@ -109,7 +109,7 @@ class FindLegalCaseUseCase:
 
         except ValueError as e:
             logger.error(
-                "Falha na validação do número '%s'. Details: %s", raw_case_number, e
+                "Falha na validação do número '%s'. details: %s", raw_case_number, e
             )
             return None
         except Exception as e:
