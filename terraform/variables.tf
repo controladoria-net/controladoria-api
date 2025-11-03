@@ -12,12 +12,6 @@ variable "instance_type" {
   default     = "t2.medium"
 }
 
-variable "ami_id" {
-  description = "ID da AMI para Ubuntu Server 22.04 LTS."
-  type        = string
-  default     = "ami-053b0d53c279acc7c" # Ubuntu Server 22.04 LTS (HVM), SSD Volume Type, us-east-1. VERIFIQUE A AMI PARA SUA REGIÃO!
-}
-
 variable "key_name" {
   description = "O nome do par de chaves EC2 para acesso SSH."
   type        = string

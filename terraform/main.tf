@@ -21,7 +21,7 @@ data "aws_ami" "ubuntu" {
 # Security Group para a instância EC2
 resource "aws_security_group" "keycloak_sg" {
   name        = "api-gateway-sg"
-  description = "Permite tráfego para SSH, HTTP, HTTPS"
+  description = "Allows traffic for SSH, HTTP, HTTPS"
   vpc_id      = data.aws_vpc.default.id
 
   # Regra para SSH
@@ -176,7 +176,6 @@ resource "aws_instance" "keycloak_server" {
             proxy_set_header X-Forwarded-Proto \$scheme;
         }
     }
-EOT
 
     ln -s /etc/nginx/sites-available/${var.domain_name}.conf /etc/nginx/sites-enabled/
     nginx -t
@@ -215,7 +214,7 @@ EOT
           retries: 5
 
       keycloak:
-        image: quay.io/keycloak/keycloak:26.4
+        image: quay.io/keycloak/keycloak:26.0.5
         container_name: keycloak
         environment:
           KC_DB: postgres
