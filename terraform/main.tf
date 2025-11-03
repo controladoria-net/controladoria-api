@@ -100,10 +100,10 @@ resource "aws_instance" "keycloak_server" {
 
     # Funções de log
     log_info() {
-      echo "[INFO] $(date '+%Y-%m-%d %H:%M:%S') $@" >&2
+      echo "[INFO] $(date '+%Y-%m-%d %H:%M:%S') \"$@\"" >&2
     }
     log_error() {
-      echo "[ERROR] $(date '+%Y-%m-%d %H:%M:%S') $@" >&2
+      echo "[ERROR] $(date '+%Y-%m-%d %H:%M:%S') \"$@\"" >&2
       exit 1
     }
 
