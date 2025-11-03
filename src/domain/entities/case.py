@@ -8,7 +8,7 @@ PATTERN = re.compile(r"^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$")
 
 def format_cnj_number(raw_number: str) -> str:
     if not re.match(r"^\d{20}$", raw_number):
-        raise ValueError("Input must be a string with exactly 20 digits.")
+        raise ValueError(f"Input must be a string with exactly 20 digits, got: {raw_number!r}")
     # NNNNNNN (Número Sequencial do Processo)
     sequential_number = raw_number[0:7]
     # DD (Dígito Verificador)
@@ -39,7 +39,9 @@ class CNJNumber:
 
     def __post_init__(self):
         if not PATTERN.match(self.number):
-            raise ValueError("Invalid CNJ number format after formatting.")
+            raise ValueError(
+                f"Invalid CNJ number format. Expected NNNNNNN-DD.AAAA.J.TR.OOOO but got: {self.number}"
+            )
 
     @property
     def judiciary_branch_code(self) -> str:
