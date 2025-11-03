@@ -51,9 +51,6 @@ resource "aws_security_group" "keycloak_sg" {
     description = "Acesso HTTPS (API Gateway via NGINX)"
   }
   
-  # As portas 8081 e 8001 não precisam mais ser abertas publicamente,
-  # pois o NGINX no mesmo host irá acessá-las internamente.
-
   # Permitir todo o tráfego de saída
   egress {
     from_port   = 0
@@ -124,12 +121,18 @@ resource "aws_instance" "keycloak_server" {
     apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     usermod -aG docker ubuntu
 
-    # --- MUDANÇA PRINCIPAL: Configuração NGINX para Roteamento por Path ---
+    # --- MUDANÇA PRINCIPAL: Configuração NGINX (SOMENTE HTTP POR ENQUANTO) ---
     log_info "Configurando NGINX para ${var.domain_name}..."
     if [ -f /etc/nginx/sites-enabled/default ]; then
         unlink /etc/nginx/sites-enabled/default
     fi
 
+    # Criar diretório para o Certbot
+    mkdir -p /var/www/html
+
+    # Este arquivo de configuração só escuta na porta 80 (HTTP).
+    # Ele já inclui as regras de proxy para que os serviços funcionem
+    # e a localização .well-known para o Certbot validar.
     cat <<EOT > /etc/nginx/sites-available/${var.domain_name}.conf
     server {
         listen 80;
@@ -141,23 +144,7 @@ resource "aws_instance" "keycloak_server" {
             root /var/www/html;
         }
 
-        # Redirecionar todo o resto para HTTPS
-        location / {
-            return 301 https://\$host\$request_uri;
-        }
-    }
-
-    server {
-        listen 443 ssl http2;
-        listen [::]:443 ssl http2;
-        server_name ${var.domain_name};
-
-        # Placeholder para os certificados SSL que o Certbot irá criar
-        ssl_certificate /etc/letsencrypt/live/${var.domain_name}/fullchain.pem;
-        ssl_certificate_key /etc/letsencrypt/live/${var.domain_name}/privkey.pem;
-
         # Rota para o Keycloak
-        # A barra no final de 'proxy_pass' é crucial para reescrever o path
         location /v1/auth/ {
             proxy_pass http://127.0.0.1:8081/; 
             proxy_set_header Host \$host;
@@ -167,7 +154,6 @@ resource "aws_instance" "keycloak_server" {
         }
 
         # Rota para a API Python
-        # A ordem é importante: a rota mais específica (/v1/auth/) deve vir antes da mais genérica (/v1/)
         location /v1/ {
             proxy_pass http://127.0.0.1:8001/;
             proxy_set_header Host \$host;
@@ -180,15 +166,12 @@ EOT
 
     ln -s /etc/nginx/sites-available/${var.domain_name}.conf /etc/nginx/sites-enabled/
     nginx -t
-    
-    # Criar diretório para o Certbot
-    mkdir -p /var/www/html
     systemctl restart nginx
 
-    log_info "Obtendo certificados SSL com Certbot para ${var.domain_name}..."
-    certbot --nginx --agree-tos --redirect -m "${var.certbot_email}" -d "${var.domain_name}" --non-interactive
+    # --- MUDANÇA PRINCIPAL: ETAPA DO CERTBOT REMOVIDA DAQUI ---
+    # (Será executada manualmente após o DNS propagar)
 
-    # --- MUDANÇA PRINCIPAL: Configuração do Docker Compose ---
+    # --- Configuração do Docker Compose (sem alterações) ---
     log_info "Criando diretórios para volumes Docker..."
     mkdir -p /opt/api-gateway/postgresql
     mkdir -p /opt/api-gateway/keycloak
@@ -225,7 +208,6 @@ EOT
           KC_HTTP_PORT: 8081
           KC_PROXY: edge
           KC_HOSTNAME: ${var.domain_name}
-          # --- NOVA VARIÁVEL: Diz ao Keycloak que ele roda em um sub-path ---
           KC_HTTP_RELATIVE_PATH: /v1/auth
           KC_ADMIN_USERNAME: ${var.keycloak_admin_user}
           KC_ADMIN_PASSWORD: ${var.keycloak_admin_password}
@@ -241,18 +223,8 @@ EOT
 
     #   python-backend:
     #     image: controladoria-api:0.0.1
-    #     container_name: controladoria-api
-    #     environment:
-    #       DATABASE_URL: postgresql://${var.db_user}:${var.db_password}@postgresql:5432/${var.db_name}
-    #       KEYCLOAK_URL: https://${var.domain_name}/v1/auth
-    #     ports:
-    #       # --- NOVA PORTA: A API agora roda na porta 8001 ---
-    #       - "8001:8001"
-    #     depends_on:
-    #       postgresql:
-    #         condition: service_healthy
-    #     restart: unless-stopped
-
+    #     ... (etc)
+    
     log_info "Subindo os containers Docker Compose..."
     cd /opt/api-gateway
     docker compose up -d
