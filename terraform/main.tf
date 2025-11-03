@@ -176,6 +176,7 @@ resource "aws_instance" "keycloak_server" {
             proxy_set_header X-Forwarded-Proto \$scheme;
         }
     }
+EOT
 
     log_info "Criando certificado temporário autossinado para ${var.domain_name}..."
     self_signed_dir="/etc/nginx/ssl/${var.domain_name}"
