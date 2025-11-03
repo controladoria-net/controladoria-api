@@ -69,6 +69,7 @@ resource "aws_security_group" "keycloak_sg" {
 
 # Elastic IP (EIP)
 resource "aws_eip" "keycloak_eip" {
+  domain = "vpc"
   tags = {
     Name = "api-gateway-eip"
   }
