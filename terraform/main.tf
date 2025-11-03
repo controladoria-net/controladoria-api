@@ -121,7 +121,6 @@ resource "aws_instance" "keycloak_server" {
     apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     usermod -aG docker ubuntu
 
-    # --- MUDANÇA PRINCIPAL: Configuração NGINX (SOMENTE HTTP POR ENQUANTO) ---
     log_info "Configurando NGINX para ${var.domain_name}..."
     if [ -f /etc/nginx/sites-enabled/default ]; then
         unlink /etc/nginx/sites-enabled/default
@@ -168,10 +167,7 @@ EOT
     nginx -t
     systemctl restart nginx
 
-    # --- MUDANÇA PRINCIPAL: ETAPA DO CERTBOT REMOVIDA DAQUI ---
-    # (Será executada manualmente após o DNS propagar)
-
-    # --- Configuração do Docker Compose (sem alterações) ---
+    # --- Configuração do Docker Compose ---
     log_info "Criando diretórios para volumes Docker..."
     mkdir -p /opt/api-gateway/postgresql
     mkdir -p /opt/api-gateway/keycloak
@@ -223,8 +219,18 @@ EOT
 
     #   python-backend:
     #     image: controladoria-api:0.0.1
-    #     ... (etc)
-    
+    #     container_name: controladoria-api
+    #     environment:
+    #       DATABASE_URL: postgresql://${var.db_user}:${var.db_password}@postgresql:5432/${var.db_name}
+    #       KEYCLOAK_URL: https://${var.domain_name}/v1/auth
+    #     ports:
+    #       # --- NOVA PORTA: A API agora roda na porta 8001 ---
+    #       - "8001:8001"
+    #     depends_on:
+    #       postgresql:
+    #         condition: service_healthy
+    #     restart: unless-stopped
+
     log_info "Subindo os containers Docker Compose..."
     cd /opt/api-gateway
     docker compose up -d
