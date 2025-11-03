@@ -7,7 +7,14 @@ from dotenv import load_dotenv
 from fastapi import File, Form, FastAPI, HTTPException, UploadFile, responses, status
 from google import genai
 from google.genai import types
-from models import GetDocumentMetadataRequest, REGISTRY, GeminiModels
+from models import (
+    DocumentMetadataResponse,
+    GetDocumentMetadataRequest,
+    REGISTRY,
+    GeminiModels,
+    build_dto,
+    dto_to_dict,
+)
 from pydantic import BaseModel
 
 app = FastAPI()
@@ -66,10 +73,21 @@ async def _generate_metadata(request: GetDocumentMetadataRequest) -> dict:
     )
 
     if isinstance(response.parsed, BaseModel):
-        return response.parsed.model_dump(mode="json")
-    if isinstance(response.parsed, dict):
-        return response.parsed
-    raise TypeError("Unexpected response type")
+        raw_payload = response.parsed.model_dump(mode="python")
+    elif isinstance(response.parsed, dict):
+        raw_payload = response.parsed
+    else:
+        raise TypeError(f"Unexpected response type: {type(response.parsed)!r}")
+
+    dto_instance = build_dto(request.type, raw_payload)
+    standardized_data = dto_to_dict(dto_instance)
+
+    response_model = DocumentMetadataResponse(
+        type=request.type,
+        data=standardized_data,
+        raw=raw_payload,
+    )
+    return response_model.model_dump(mode="json")
 
 
 async def _save_upload_to_temp(upload: UploadFile) -> Path:

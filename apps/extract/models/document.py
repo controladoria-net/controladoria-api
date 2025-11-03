@@ -438,6 +438,35 @@ REAP = Descriptor(
 )
 
 
+DOCUMENTO_IDENTIDADE = Descriptor(
+    name="Documento de Identidade",
+    sigla="DOCUMENTO_IDENTIDADE",
+    instruction="""
+        Confirme se existe algum documento de identidade válido (RG, CNH, carteira profissional) no conteúdo analisado.
+
+        Campos esperados no documento:
+        - Nome completo da pessoa identificada;
+        - CPF, se constar;
+        - Informação se o documento de identidade foi encontrado.
+
+        Caso nenhum documento de identidade válido seja identificado, retorne os campos vazios e marque `documento_existe` como falso.
+    """,
+    response_mime_type="application/json",
+    response_schema=types.Schema(
+        type=GType.OBJECT,
+        properties={
+            "nome": nome,
+            "cpf": cpf,
+            "documento_existe": types.Schema(
+                type=GType.BOOLEAN,
+                description="True quando houver um documento de identidade válido identificado.",
+            ),
+        },
+        required=["documento_existe"],
+    ),
+)
+
+
 
 type Type = Literal[
     "CADASTRO_NACIONAL_INFORMACAO_SOCIAL",
@@ -448,6 +477,7 @@ type Type = Literal[
     "GPS",
     "BIOMETRIA",
     "RELATORIO_ATIVIDADE_PESQUEIRA",
+    "DOCUMENTO_IDENTIDADE",
 ]
 
 REGISTRY: dict[Type, Descriptor] = {
@@ -459,4 +489,5 @@ REGISTRY: dict[Type, Descriptor] = {
     "GPS": GPS,
     "BIOMETRIA": BIOMETRIA,
     "RELATORIO_ATIVIDADE_PESQUEIRA": REAP,
+    "DOCUMENTO_IDENTIDADE": DOCUMENTO_IDENTIDADE,
 }

@@ -1,8 +1,10 @@
-from pydantic import BaseModel
-from enum import StrEnum
-from typing import Optional
-from models.document import Type
 from pathlib import Path
+from enum import StrEnum
+from typing import Any, Dict, Optional
+
+from pydantic import BaseModel
+
+from models.document import Type
 
 
 class GeminiModels(StrEnum):
@@ -16,6 +18,12 @@ class GetDocumentMetadataRequest(BaseModel):
     type: Type
     content_mime_type: Optional[str] = None
     temperature: Optional[float] = None
+
+
+class DocumentMetadataResponse(BaseModel):
+    type: Type
+    data: Dict[str, Any]
+    raw: Dict[str, Any]
 
 
 
