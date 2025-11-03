@@ -39,7 +39,9 @@ class CNJNumber:
 
     def __post_init__(self):
         if not PATTERN.match(self.number):
-            raise ValueError("Invalid CNJ number format after formatting.")
+            raise ValueError(
+                f"Invalid CNJ number format. Expected NNNNNNN-DD.AAAA.J.TR.OOOO but got: {self.number}"
+            )
 
     @property
     def judiciary_branch_code(self) -> str:
