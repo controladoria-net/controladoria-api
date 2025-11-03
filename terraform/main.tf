@@ -108,7 +108,7 @@ resource "aws_instance" "keycloak_server" {
 
     log_info "Iniciando script user_data..."
     apt update -y && apt upgrade -y
-    apt install -y apt-transport-https ca-certificates curl gnupg-agent software-properties-common nginx ufw certbot python3-certbot-nginx openssl
+    apt install -y apt-transport-https ca-certificates curl gnupg-agent software-properties-common nginx ufw certbot python3-certbot-nginx
 
     log_info "Configurando UFW..."
     ufw allow OpenSSH
@@ -153,8 +153,8 @@ resource "aws_instance" "keycloak_server" {
         server_name ${var.domain_name};
 
         # Placeholder para os certificados SSL que o Certbot irá criar
-        ssl_certificate /etc/nginx/ssl/${var.domain_name}/fullchain.pem;
-        ssl_certificate_key /etc/nginx/ssl/${var.domain_name}/privkey.pem;
+        ssl_certificate /etc/letsencrypt/live/${var.domain_name}/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/${var.domain_name}/privkey.pem;
 
         # Rota para o Keycloak
         # A barra no final de 'proxy_pass' é crucial para reescrever o path
@@ -178,17 +178,7 @@ resource "aws_instance" "keycloak_server" {
     }
 EOT
 
-    log_info "Criando certificado temporário autossinado para ${var.domain_name}..."
-    self_signed_dir="/etc/nginx/ssl/${var.domain_name}"
-    mkdir -p "${self_signed_dir}"
-    if [ ! -f "${self_signed_dir}/fullchain.pem" ] || [ ! -f "${self_signed_dir}/privkey.pem" ]; then
-        openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
-          -keyout "${self_signed_dir}/privkey.pem" \
-          -out "${self_signed_dir}/fullchain.pem" \
-          -subj "/CN=${var.domain_name}"
-    fi
-
-    ln -sfn /etc/nginx/sites-available/${var.domain_name}.conf /etc/nginx/sites-enabled/
+    ln -s /etc/nginx/sites-available/${var.domain_name}.conf /etc/nginx/sites-enabled/
     nginx -t
     
     # Criar diretório para o Certbot
@@ -197,16 +187,6 @@ EOT
 
     log_info "Obtendo certificados SSL com Certbot para ${var.domain_name}..."
     certbot --nginx --agree-tos --redirect -m "${var.certbot_email}" -d "${var.domain_name}" --non-interactive
-
-    log_info "Atualizando certificados NGINX para usar Let's Encrypt..."
-    if [ -f "/etc/letsencrypt/live/${var.domain_name}/fullchain.pem" ] && [ -f "/etc/letsencrypt/live/${var.domain_name}/privkey.pem" ]; then
-        ln -sf "/etc/letsencrypt/live/${var.domain_name}/fullchain.pem" "${self_signed_dir}/fullchain.pem"
-        ln -sf "/etc/letsencrypt/live/${var.domain_name}/privkey.pem" "${self_signed_dir}/privkey.pem"
-        nginx -t
-        systemctl reload nginx
-    else
-        log_error "Certificados Let's Encrypt não encontrados para ${var.domain_name}."
-    fi
 
     # --- MUDANÇA PRINCIPAL: Configuração do Docker Compose ---
     log_info "Criando diretórios para volumes Docker..."
@@ -235,7 +215,7 @@ EOT
           retries: 5
 
       keycloak:
-        image: quay.io/keycloak/keycloak:26.0.5
+        image: quay.io/keycloak/keycloak:26.4
         container_name: keycloak
         environment:
           KC_DB: postgres
