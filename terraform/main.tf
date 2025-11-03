@@ -197,6 +197,16 @@ resource "aws_instance" "keycloak_server" {
     log_info "Obtendo certificados SSL com Certbot para ${var.domain_name}..."
     certbot --nginx --agree-tos --redirect -m "${var.certbot_email}" -d "${var.domain_name}" --non-interactive
 
+    log_info "Atualizando certificados NGINX para usar Let's Encrypt..."
+    if [ -f "/etc/letsencrypt/live/${var.domain_name}/fullchain.pem" ] && [ -f "/etc/letsencrypt/live/${var.domain_name}/privkey.pem" ]; then
+        ln -sf "/etc/letsencrypt/live/${var.domain_name}/fullchain.pem" "${self_signed_dir}/fullchain.pem"
+        ln -sf "/etc/letsencrypt/live/${var.domain_name}/privkey.pem" "${self_signed_dir}/privkey.pem"
+        nginx -t
+        systemctl reload nginx
+    else
+        log_error "Certificados Let's Encrypt não encontrados para ${var.domain_name}."
+    fi
+
     # --- MUDANÇA PRINCIPAL: Configuração do Docker Compose ---
     log_info "Criando diretórios para volumes Docker..."
     mkdir -p /opt/api-gateway/postgresql
