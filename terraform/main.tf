@@ -21,7 +21,7 @@ data "aws_ami" "ubuntu" {
 # Security Group para a instância EC2
 resource "aws_security_group" "keycloak_sg" {
   name        = "api-gateway-sg"
-  description = "Permite tráfego para SSH, HTTP, HTTPS"
+  description = "Allows traffic for SSH, HTTP, HTTPS"
   vpc_id      = data.aws_vpc.default.id
 
   # Regra para SSH
