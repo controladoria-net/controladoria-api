@@ -216,7 +216,7 @@ EOT
           retries: 5
 
       keycloak:
-        image: quay.io/keycloak/keycloak:23.0
+        image: quay.io/keycloak/keycloak:26.4
         container_name: keycloak
         environment:
           KC_DB: postgres
