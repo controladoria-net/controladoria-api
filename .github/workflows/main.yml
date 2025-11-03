@@ -15,9 +15,9 @@ jobs:
     with:
       environment: prod
       aws-region: 'sa-east-1'
-      aws-assume-role-arn: 'arn:aws:iam::SUA_CONTA_AWS:role/NOME_DA_SUA_ROLE'
-      aws-statefile-s3-bucket: 'NOME_DO_SEU_BUCKET_S3'
-      aws-lock-dynamodb-table: 'NOME_DA_SUA_TABELA_DYNAMODB'
+      aws-assume-role-arn: 'arn:aws:iam::880935329913:oidc-provider/token.actions.githubusercontent.com'
+      aws-statefile-s3-bucket: 'controladoria-east-1-terraform-statefile'
+      aws-lock-dynamodb-table: 'controladoria-east-1-terraform-lock'
       key_name: 'controladoria-prod-key'
       domain_name: 'api.controladoria.net.br'
 

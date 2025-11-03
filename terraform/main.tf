@@ -240,20 +240,19 @@ EOT
         restart: unless-stopped
         command: start-dev
 
-      python-backend:
-        image: your_python_backend_image:latest
-        container_name: your-python-backend
-        environment:
-          DATABASE_URL: postgresql://${var.db_user}:${var.db_password}@postgresql:5432/${var.db_name}
-          KEYCLOAK_URL: https://${var.domain_name}/v1/auth
-        ports:
-          # --- NOVA PORTA: A API agora roda na porta 8001 ---
-          - "8001:8001"
-        depends_on:
-          postgresql:
-            condition: service_healthy
-        restart: unless-stopped
-EOT
+    #   python-backend:
+    #     image: controladoria-api:0.0.1
+    #     container_name: controladoria-api
+    #     environment:
+    #       DATABASE_URL: postgresql://${var.db_user}:${var.db_password}@postgresql:5432/${var.db_name}
+    #       KEYCLOAK_URL: https://${var.domain_name}/v1/auth
+    #     ports:
+    #       # --- NOVA PORTA: A API agora roda na porta 8001 ---
+    #       - "8001:8001"
+    #     depends_on:
+    #       postgresql:
+    #         condition: service_healthy
+    #     restart: unless-stopped
 
     log_info "Subindo os containers Docker Compose..."
     cd /opt/api-gateway
