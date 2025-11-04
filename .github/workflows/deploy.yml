@@ -75,6 +75,8 @@ jobs:
               \"/opt/controladoria/api/setup_env.sh $NEW_IMAGE_TAG $FULL_ECR_URL $AWS_REGION\",
               
               \"echo 'Fazendo login no ECR...'\",
+              \"echo '$AWS_REGION'\",
+              \"echo '$FULL_ECR_URL'\",
               \"aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY_HOST\",
               
               \"echo 'Baixando nova imagem...'\",
