@@ -58,11 +58,12 @@ jobs:
           ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY_NAME }}
           EC2_INSTANCE: ${{ secrets.EC2_INSTANCE_ID }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
+          ECR_REPOSITORY_URL: ${{ secrets.ECR_REPOSITORY_URL }}
         run: |
           echo "Enviando comando de deploy para a EC2..."
 
           # Constroi o URL completo do repositorio
-          FULL_ECR_URL="$ECR_REGISTRY_HOST/$ECR_REPOSITORY"
+          # FULL_ECR_URL="$ECR_REGISTRY_HOST/$ECR_REPOSITORY"
 
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$EC2_INSTANCE" \
@@ -72,12 +73,12 @@ jobs:
               \"cd /opt/controladoria/api\",
               
               \"echo 'Gerando arquivo .env...'\",
-              \"/opt/controladoria/api/setup_env.sh $NEW_IMAGE_TAG $FULL_ECR_URL $AWS_REGION\",
+              \"/opt/controladoria/api/setup_env.sh $NEW_IMAGE_TAG $ECR_REPOSITORY_URL $AWS_REGION\",
               
               \"echo 'Fazendo login no ECR...'\",
               \"echo 'DEBUG: Region - $AWS_REGION'\",
-              \"echo 'DEBUG: Full ECR URL - $FULL_ECR_URL'\",
-              \"aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $FULL_ECR_URL\",
+              \"echo 'DEBUG: Full ECR URL - $ECR_REPOSITORY_URL'\",
+              \"aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPOSITORY_URL\",
               
               \"echo 'Baixando nova imagem...'\",
               \"docker compose --env-file .env pull backend-api\",
