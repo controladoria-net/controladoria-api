@@ -55,22 +55,29 @@ jobs:
         env:
           NEW_IMAGE_TAG: ${{ github.ref_name }}
           ECR_REGISTRY_HOST: ${{ needs.build-and-push.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY_NAME }}
         run: |
           aws ssm send-command \
             --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
             --document-name "AWS-RunShellScript" \
             --comment "Triggering new deploy for tag $NEW_IMAGE_TAG" \
-            --parameters 'commands=[
-              "cd /opt/controladoria",
-              "echo ''''Gerando arquivo .env a partir do Parameter Store...'''''",
-              "aws ssm get-parameters-by-path --path /controladoria --with-decryption --query ''''Parameters[].{Name:Name,Value:Value}'''' --output text | awk ''''{gsub(/\\/controladoria\\//, \"\"); printf \"%s=%s\\n\", $1, $2}'''' > .env",
-              "echo ''''ECR_REPOSITORY_URL=${{ secrets.ECR_REPOSITORY_URL }}'''' >> .env",
-              "echo ''''IMAGE_TAG=$NEW_IMAGE_TAG'''' >> .env",
-              "echo ''''Fazendo login no ECR...'''''",
-              "aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin $ECR_REGISTRY_HOST",
-              "echo ''''Baixando nova imagem...'''''",
-              "docker-compose --env-file .env pull backend-api",
-              "echo ''''Recriando o container do backend...'''''",
-              "docker-compose --env-file .env up -d --no-deps backend-api",
-              "echo ''''Deploy concluído!''''"
-            ]'
+            --parameters "commands=[
+              \"cd /opt/controladoria\",
+              \"echo 'Gerando arquivo .env a partir do Parameter Store...'\",
+              
+              \"aws ssm get-parameters-by-path --path /controladoria --with-decryption --query 'Parameters[].{Name:Name,Value:Value}' --output text | awk '{gsub(\\\"/controladoria/\\\", \\\"\\\"); printf \\\"%s=%s\\\\n\\\", $1, $2}' > .env\",
+              
+              \"echo 'IMAGE_TAG=$NEW_IMAGE_TAG' >> .env\",
+              \"echo 'ECR_REPOSITORY_URL=$ECR_REGISTRY_HOST/$ECR_REPOSITORY' >> .env\",
+              
+              \"echo 'Fazendo login no ECR...'\",
+              \"aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin $ECR_REGISTRY_HOST\",
+              
+              \"echo 'Baixando nova imagem...'\",
+              \"docker-compose --env-file .env pull backend-api\",
+              
+              \"echo 'Recriando o container do backend...'\",
+              \"docker-compose --env-file .env up -d --no-deps backend-api\",
+              
+              \"echo 'Deploy concluído!'\"
+            ]"
