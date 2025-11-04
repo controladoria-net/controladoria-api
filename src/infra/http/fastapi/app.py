@@ -13,13 +13,30 @@ from infra.factories.classificador_factory import get_classificador_gateway
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    try:
-        get_classificador_gateway()
-    except Exception as e:
-        # adicionar log de erro
-        pass
     
+    # 1. Criar e Configurar o Gateway
+    try:
+        print("Lifespan: Configurando o Gateway do Gemini...")
+        gateway = get_classificador_gateway()
+        gateway.configurar()
+        
+        # 2. Armazenar o gateway configurado no 'state' da aplicação
+        # para que os routers possam acessá-lo.
+        app.state.gateway = gateway
+        print("Lifespan: Gateway configurado e pronto.")
+        
+    except ValueError as e:
+        # Se a API key estiver faltando, a aplicação não deve iniciar.
+        print(f"ERRO CRÍTICO NA INICIALIZAÇÃO: {e}")
+        # Em um cenário real, poderíamos decidir 'raise' e parar o app.
+        app.state.gateway = None # Define como None para falhar de forma controlada
+
+    # 'yield' passa o controle de volta para o FastAPI
     yield
+    
+    # 3. Código de Shutdown (se necessário)
+    print("Lifespan: Desligando a API...")
+    # (Ex: fechar conexões de banco de dados, etc.)
 
 app = FastAPI(
     lifespan=lifespan,

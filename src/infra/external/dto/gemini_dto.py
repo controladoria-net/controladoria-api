@@ -1,10 +1,12 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 
+
+class ClassificacaoDTO(BaseModel):
+    type: str = Field(..., description="A categoria do documento classificado.")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Nível de confiança da classificação (0.0 a 1.0).")
+
+
 class GeminiResponseDTO(BaseModel):
-    """
-    Valida o JSON esperado da API do Gemini.
-    """
-    categoria: str
-    formato_arquivo: Optional[str] = Field(None, alias="formato_arquivo") # O prompt pede, mas o nome do arquivo já temos
-    nome_arquivo: Optional[str] = Field(None, alias="nome_arquivo") # O prompt pede, mas o nome do arquivo já temos
+    classificacao: ClassificacaoDTO
+    mimetype: Optional[str] = Field(None, description="Tipo MIME inferido pelo modelo (opcional).")

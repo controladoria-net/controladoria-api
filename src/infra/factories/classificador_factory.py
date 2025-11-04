@@ -1,6 +1,6 @@
 from domain.usecases.classificar_documentos_usecase import ClassificarDocumentosUseCase
 from domain.gateway.classificador_gateway import IClassificadorGateway
-from ..external.gateway.gemini_classificador_gateway import GeminiClassificadorGateway
+from infra.external.gateway.gemini_classificador_gateway import GeminiClassificadorGateway
 from typing import Optional
 
 # Cache para o gateway (Singleton)

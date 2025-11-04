@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from ..entities.documento import DocumentoProcessar, ResultadoClassificacao
+from domain.entities.documento import DocumentoProcessar, ResultadoClassificacao
 
 class IClassificadorGateway(ABC):
     @abstractmethod

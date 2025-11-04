@@ -8,7 +8,7 @@ Sua tarefa é analisar o documento em anexo e **apenas classificar** em UMA das 
 ---
 CATEGORIAS DE DOCUMENTOS (Use para classificar):
 ---
-* `CERTIFICADO_DE_REGULARIDADE`: 
+* `CERTIFICADO DE REGULARIDADE`: 
     Este documento é um Certificado de Regularidade de Licença de Pescador Profissional, 
     emitido pelo Ministério da Pesca e Aquicultura através da 
     Secretaria Nacional de Registro, Monitoramento e Pesquisa. 
@@ -28,28 +28,28 @@ CATEGORIAS DE DOCUMENTOS (Use para classificar):
       que identifica um Contribuinte como Segurado Especial em situação Ativa, 
       registrando a Classificação (CNAE) e um endereço.
 
-* `DECLARAÇÃO_DE_RESIDÊNCIA`: Este documento é uma Declaração de Residência 
+* `DECLARAÇÃO DE RESIDÊNCIA`: Este documento é uma Declaração de Residência 
 (para Pessoa Alfabetizada), emitida para o Ministério da Pesca e Aquicultura (MPA). 
 É um documento onde a pessoa, na falta de comprovantes próprios, 
 declara sob as penas da lei seu endereço e domicílio. O declarante assume a responsabilidade civil 
 e penal pela veracidade das informações, com base no Artigo 299 do Código Penal (Falsidade ideológica) 
 e na Lei nº 7.115/1983.
 CARACTERÍSTICAS: Declaração de Residência (Pessoa Alfabetizada) para o Ministério da Pesca e Aquicultura (MPA),
-  onde o declarante atesta residência sob responsabilidade civil e penal e está ciente das penalidades 
-  por Falsidade Ideológica (Art. 299 do Código Penal e Lei nº 7.115/83).
+ onde o declarante atesta residência sob responsabilidade civil e penal e está ciente das penalidades 
+ por Falsidade Ideológica (Art. 299 do Código Penal e Lei nº 7.115/83).
 
 * `CNIS`: Este documento é a Identificação do Filiado, contendo o Número de Identificação do Trabalhador (NIT)
-  e um extrato de Relações Previdenciárias do Cadastro Nacional de Informações Sociais (CNIS), 
-  emitido pelo Instituto Nacional do Seguro Social (INSS). O documento lista as relações de trabalho registradas (vínculos), 
-  indicando o NIT, a origem do vínculo (empresa), o tipo de filiado (Empregado ou Agente Público), 
-  e as datas de início e fim desses vínculos. Ele também informa a data de nascimento do filiado 
-  e as regras sobre a revisão das informações e o reconhecimento do tempo de contribuição.
-CARACTERÍSTICAS: Identificação do Filiado (INSS) com o Número de Identificação do Trabalhador (NIT)
-  e o extrato de Relações Previdenciárias do CNIS que lista vínculos empregatícios com 
-  datas de início e fim e informa sobre a autenticidade, a possibilidade de revisão 
-  a qualquer tempo e as regras de reconhecimento de tempo de contribuição.
+ e um extrato de Relações Previdenciárias do Cadastro Nacional de Informações Sociais (CNIS), 
+ emitido pelo Instituto Nacional do Seguro Social (INSS). O documento lista as relações de trabalho registradas (vínculos), 
+ indicando o NIT, a origem do vínculo (empresa), o tipo de filiado (Empregado ou Agente Público), 
+ e as datas de início e fim desses vínculos. Ele também informa a data de nascimento do filiado 
+ e as regras sobre a revisão das informações e o reconhecimento do tempo de contribuição.
+CARCATERÍSTICAS: Identificação do Filiado (INSS) com o Número de Identificação do Trabalhador (NIT)
+ e o extrato de Relações Previdenciárias do CNIS que lista vínculos empregatícios com 
+ datas de início e fim e informa sobre a autenticidade, a possibilidade de revisão 
+ a qualquer tempo e as regras de reconhecimento de tempo de contribuição.
 
-* `TERMO_DE_REPRESENTAÇÃO`: Este é um Termo de Representação e Autorização 
+* `TERMO DE REPRESENTAÇÃO`: Este é um Termo de Representação e Autorização 
 de Acesso a Informações Previdenciárias , conforme a Portaria Conjunta N° 3/DIRAT/DIRBEN/INSS. 
 Nele, o segurado confere poderes específicos a um advogado para representá-lo perante o INSS 
 (Previdência Social) e autoriza o acesso às informações pessoais necessárias.
@@ -69,7 +69,7 @@ receber e dar quitação, transigir, e requerer gratuidade de justiça.
 CARACTERÍSTICAS: Procuração Ad-Judicia et Extra, que confere amplos poderes para 
 o foro em geral e perante entidades como o INSS, com a cláusula "ad judicia"
 
-* `GPS_E_COMPROVANTE`: Qualquer documento referente ao pagamento da Guia 
+* `GPS E COMPROVANTE`: Qualquer documento referente ao pagamento da Guia 
   da Previdência Social (GPS) via eSocial. Isso inclui o boleto/guia 
   (DAE), o extrato de débitos/situação da folha, OU o comprovante de 
   pagamento (Recibo de Pix, bancário, etc.).
@@ -82,7 +82,8 @@ CARACTERÍSTICAS: Comprovante de Situação Eleitoral que atesta que o título d
 para votar na próxima eleição, confirmando o CUMPRIMENTO DE OBRIGAÇÃO ELEITORAL e 
 indicando que o Eleitor/Eleitora tem BIOMETRIA COLETADA.
 
-* `CIN`: Carteira de Identidade emitida por uma Secretaria de Segurança Pública de um Estado da Federação  (neste caso, Maranhão), 
+* `CIN`: Carteira de Identidade emitida por uma Secretaria de Segurança Pública de um Estado da Federação 
+ (neste caso, Maranhão), 
 contendo as seguintes informações obrigatórias: Nome , Nome Social , Registro Geral , CPF , Data de Nascimento , Nacionalidade , 
 Naturalidade , Validade , Filiação , Órgão Expedidor , Local de Emissão e Data de Emissão.
 
@@ -91,20 +92,26 @@ Naturalidade , Validade , Filiação , Órgão Expedidor , Local de Emissão e D
   CARACTERÍSTICAS: Comprovante de Inscrição no Cadastro de Pessoas Físicas (CPF) , emitido pelo 
   Ministério da Fazenda/Receita Federal , possui Número , Nome , Nascimento , Código de Controle e 
   é VÁLIDO SOMENTE COM COMPROVANTE DE IDENTIFICAÇÃO , com autenticidade confirmável em www.receita.fazenda.gov.br.
-* `REAP`: Relatório de Exercício da Atividade Pesqueira (formulário anual 
-  do Ministério da Pesca).
+
+* `REAP`: Este documento é um Relatório de Exercício de Atividade Pesqueira (REAP), emitido pelo Ministério da Pesca e Aquicultura (MPA) 
+    através do sistema PesqBrasil RGP Pescador e Pescadora Profissional. O REAP tem como objetivo registrar e atestar a atividade de pesca exercida 
+    por um pescador profissional, sendo crucial para a comprovação da atividade rural e o acesso a benefícios como o Seguro Defeso 
+    (Seguro Desemprego do Pescador Artesanal).
 
 * `OUTRO`: Qualquer documento que não se encaixe nas categorias acima.
 
 ---
 FORMATO DA RESPOSTA:
 ---
-Responda APENAS com um JSON de UMA ÚNICA LINHA contendo a "categoria" o nome do arquivo anexado e o tipo de arquivo (se é em pdf, png, jpeg e entre outros).
+Responda APENAS com um JSON de UMA ÚNICA LINHA contendo os seguintes campos:
+1.  `classificacao`: Um objeto com `type` (a categoria) e `confidence` (um número de 0.0 a 1.0 representando sua certeza).
+2.  `mimetype`: Sua melhor estimativa do formato do arquivo (ex: "pdf", "png", "jpeg").
+
 
 EXEMPLO DE RESPOSTA:
-{"categoria": "GPS_E_COMPROVANTE", "formato_arquivo": "pdf", "nome_arquivo": "comprovante_de_pagamento.pdf"}
+{"classificacao": {"type": "GPS_E_COMPROVANTE", "confidence": 0.98}, "mimetype": "png"}
 
 SUA TAREFA:
 Analise o documento em anexo e retorne o JSON de UMA ÚNICA LINHA 
-apenas com a categoria, nome do arquivo anexado e o formato do arquivo.
+no formato exato descrito acima.
 """
