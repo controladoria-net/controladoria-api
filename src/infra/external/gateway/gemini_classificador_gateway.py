@@ -19,11 +19,9 @@ class GeminiClassificadorGateway(IClassificadorGateway):
 
     def __init__(self):
         self.model_name: str = "gemini-2.5-flash"
-        # Configuração básica para solicitar JSON como resposta—é passada como 'config' para generate_content
         self.generation_config: dict | None = {"response_mime_type": "application/json"}
 
     def configurar(self):
-        print("Gateway: Configurando API do Gemini...")
         load_dotenv()
 
         api_key = os.getenv("GOOGLE_API_KEY")
@@ -33,12 +31,7 @@ class GeminiClassificadorGateway(IClassificadorGateway):
                 
         self.client = genai.Client(api_key=api_key)
 
-
-        print("Gateway: Configuração concluída.")
-
     def classificar(self, documento: DocumentoProcessar) -> ResultadoClassificacao:
-        print(f"Gateway: Classificando {documento.nome_arquivo_original} ({documento.mimetype}) a partir do stream...")
-
         tmp_path = None
         try:
             # 1) lê bytes do stream
@@ -52,7 +45,6 @@ class GeminiClassificadorGateway(IClassificadorGateway):
             # 2) grava em arquivo temporário (NamedTemporaryFile) — fornece compatibilidade máxima com client.files.upload
             suffix = ""
             try:
-                # tenta preservar extensão do nome original
                 _, ext = os.path.splitext(documento.nome_arquivo_original or "")
                 suffix = ext if ext else ""
             except Exception:
@@ -75,19 +67,15 @@ class GeminiClassificadorGateway(IClassificadorGateway):
                 },
             )
 
-            # uploaded deve ter .uri e .mime_type (varia por versão)
             file_uri = getattr(uploaded, "uri", None) or getattr(uploaded, "name", None) or getattr(uploaded, "id", None)
             uploaded_mime = getattr(uploaded, "mime_type", None) or documento.mimetype
 
             if not file_uri:
-                # fallback: se upload não retornou uri, tenta usar o object retornado diretamente nas partes
                 part_for_contents = uploaded
             else:
-                # 4) construir Part a partir do URI (forma recomendada)
                 try:
                     part_for_contents = genai.types.Part.from_uri(file_uri=file_uri, mime_type=uploaded_mime)
                 except Exception:
-                    # fallback: algumas versões aceitam um dict simples com file_uri
                     part_for_contents = {"file_uri": file_uri, "mime_type": uploaded_mime}
 
             # 5) chamada ao modelo pedindo JSON
@@ -110,11 +98,9 @@ class GeminiClassificadorGateway(IClassificadorGateway):
             # 6) interpretar retorno (texto JSON ou conteúdo envelopado)
             text = getattr(response, "text", None)
             if not text:
-                # tenta candidates/... como fallback
                 candidates = getattr(response, "candidates", None)
                 if candidates and len(candidates) > 0:
                     cand = candidates[0]
-                    # tenta pegar cand.content.parts[0].text
                     content = getattr(cand, "content", None)
                     if content and getattr(content, "parts", None):
                         p = content.parts[0]
@@ -132,7 +118,6 @@ class GeminiClassificadorGateway(IClassificadorGateway):
                     raise
 
             response_dto = GeminiResponseDTO.model_validate(response_json)
-            print(f"Gateway: Classificação recebida (DTO): {response_dto.classificacao.type}")
 
             mimetype_normalizado = self._normalizar_mimetype(documento.mimetype)
             return ClassificacaoMapper.to_domain(
@@ -143,15 +128,12 @@ class GeminiClassificadorGateway(IClassificadorGateway):
             )   
 
         except (json.JSONDecodeError, ValidationError) as e:
-            print(f"Gateway: Erro de validação Pydantic ou JSON: {e}")
             return self._criar_resultado_erro(documento, CategoriaDocumento.ERRO_DE_FORMATO)
 
         except Exception as e:
-            print(f"Gateway: Erro inesperado na classificação: {e}")
             return self._criar_resultado_erro(documento, CategoriaDocumento.ERRO_NA_CLASSIFICACAO)
 
         finally:
-            # cleanup do arquivo temporário
             try:
                 if tmp_path and os.path.exists(tmp_path):
                     os.unlink(tmp_path)
@@ -159,11 +141,9 @@ class GeminiClassificadorGateway(IClassificadorGateway):
                 pass
 
     def _normalizar_mimetype(self, mimetype: str | None) -> str:
-        """Garante que o mimetype está no formato 'application/...' ou 'image/...', etc."""
         if not mimetype:
             return "application/octet-stream"
         if "/" not in mimetype:
-            # tenta adivinhar tipo genérico
             if mimetype.lower() in ["pdf", "x-pdf"]:
                 return "application/pdf"
             elif mimetype.lower() in ["png", "jpeg", "jpg", "gif"]:
