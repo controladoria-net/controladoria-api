@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +13,24 @@ from src.infra.http.fastapi.router.legal_cases_router import (
     router as legal_cases_router,
 )
 from src.infra.http.fastapi.router.session_router import router as session_router
+
+from infra.http.fastapi.router.classificador_router import router as classificador_router
+from infra.factories.classificador_factory import get_classificador_gateway
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        print("Lifespan: Configurando o Gateway do Gemini...")
+        gateway = get_classificador_gateway()
+        gateway.configurar()
+
+        app.state.gateway = gateway
+        
+    except ValueError as e:
+        app.state.gateway = None 
+
+    yield
 
 
 def create_app() -> FastAPI:
@@ -43,6 +62,7 @@ def create_app() -> FastAPI:
 
     fastapi_app.include_router(session_router)
     fastapi_app.include_router(legal_cases_router)
+    fastapi_app.include_router(classificador_router)
 
     @fastapi_app.get("/health", tags=["HealthCheck"])
     async def health_check():
