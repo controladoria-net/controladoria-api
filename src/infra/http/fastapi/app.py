@@ -22,10 +22,15 @@ def create_app() -> FastAPI:
         docs_url="/docs",
         redoc_url="/redoc",
     )
-
+    origins = [
+        "http://localhost:3000",  # Para seu React app em desenvolvimento
+        # Adicione aqui o domínio do seu frontend em produção
+        # "https://www.controladoria.net.br",
+        # "https://controladoria.net.br",
+    ]
     fastapi_app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
