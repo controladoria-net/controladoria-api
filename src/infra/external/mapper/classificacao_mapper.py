@@ -32,9 +32,11 @@ class ClassificacaoMapper:
                 f"application/{mimetype_final.lower().replace('application/', '')}"
             )
 
+        # Preserve original file name in 'arquivo' so that HTTP mapper can
+        # correlate with persisted metadata keyed by the original filename.
         return ResultadoClassificacao(
             classificacao=classificacao_enum,
             confianca=float(getattr(response_dto.classificacao, "confidence", 0.0)),
-            arquivo=gemini_file or documento.nome_arquivo_original,
+            arquivo=documento.nome_arquivo_original,
             mimetype=mimetype_final,
         )

@@ -51,14 +51,14 @@ router = APIRouter(prefix="/solicitacao", tags=["Solicitações"])
 
 class ExtractionRequestDTO(BaseModel):
     solicitation_id: Optional[str] = None
-    document_ids: List[str] = Field(..., min_length=1)
+    document_ids: Optional[List[str]] = Field(default=None)
 
 
 class EligibilityRequestDTO(BaseModel):
     solicitation_id: str
 
 
-@router.post("/classificador/processar", response_model=GeneralResponseDTO)
+@router.post("/classificador", response_model=GeneralResponseDTO)
 async def classificar_documentos(
     files: List[UploadFile] = File(..., description="Documentos para classificação"),
     session=Depends(get_session),
@@ -108,8 +108,32 @@ async def extrair_dados(
     session=Depends(get_session),
     _: AuthenticatedUserEntity = AuthenticatedUser,
 ):
+    # Permite derivar document_ids a partir do solicitation_id quando não enviados
+    doc_ids: Optional[List[str]] = payload.document_ids
+    if (not doc_ids or len(doc_ids) == 0) and payload.solicitation_id:
+        from src.infra.database.repositories.document_repository import (
+            DocumentRepository,
+        )
+
+        repo = DocumentRepository(session)
+        docs = repo.list_by_solicitation(payload.solicitation_id)
+        doc_ids = [d.document_id for d in docs]
+
+    if not doc_ids:
+        response = GeneralResponseDTO(
+            errors=[
+                {
+                    "message": "Informe 'document_ids' ou um 'solicitation_id' válido com documentos.",
+                }
+            ]
+        )
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content=response.model_dump(),
+        )
+
     use_case: ExtrairDadosUseCase = create_extrair_dados_use_case(session)
-    result = use_case.execute(payload.document_ids)
+    result = use_case.execute(doc_ids)
     if result.is_left():
         error = result.get_left()
         if isinstance(error, DocumentNotFoundError):

@@ -18,6 +18,7 @@ def load_extraction_descriptors() -> Dict[str, str]:
         raise RuntimeError("Arquivo de descritores não define a classe 'Descriptor'.")
 
     descriptors: Dict[str, str] = {}
+    # 1) Coleta pelos nomes de variáveis e siglas
     for key, value in namespace.items():
         if isinstance(value, descriptor_class):  # type: ignore[arg-type]
             instruction = getattr(value, "system_instruction", None) or getattr(
@@ -27,6 +28,17 @@ def load_extraction_descriptors() -> Dict[str, str]:
             sigla = getattr(value, "sigla", None)
             if sigla:
                 descriptors[str(sigla).upper()] = instruction
+
+    # 2) Coleta aliases declarados como dicionários no arquivo (ex.: "CADASTRO_NACIONAL_...": CNIS)
+    for _, obj in namespace.items():
+        if isinstance(obj, dict):
+            for alias_key, alias_value in obj.items():
+                if isinstance(alias_value, descriptor_class):  # type: ignore[arg-type]
+                    instruction = getattr(
+                        alias_value, "system_instruction", None
+                    ) or getattr(alias_value, "instruction", "")
+                    descriptors[str(alias_key).upper()] = instruction
+
     return descriptors
 
 

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from typing import Callable, List
+import re
+import unicodedata
 
 from src.domain.core.either import Either, Left, Right
 from src.domain.core.errors import (
@@ -82,11 +84,11 @@ class AvaliarElegibilidadeUseCase:
             metrics.increment("eligibility_errors")
             return Left(EligibilityComputationError(str(exc)))
 
-        status = evaluation.get("status")
+        raw_status = evaluation.get("status")
         score_text = evaluation.get("score_texto")
         pendencias = evaluation.get("pendencias", [])
 
-        if status is None or score_text is None:
+        if raw_status is None or score_text is None:
             metrics.increment("eligibility_errors")
             return Left(
                 EligibilityComputationError(
@@ -94,20 +96,55 @@ class AvaliarElegibilidadeUseCase:
                 )
             )
 
+        status = self._normalize_status(str(raw_status))
         record = self._eligibility_repository.upsert(
             solicitation_id=solicitation_id,
             status=status,
             score_text=score_text,
             pending_items=pendencias,
         )
-        try:
-            self._solicitation_repository.update_status(solicitation_id, status)
-        except SolicitationNotFoundError:
-            # Solicitation must exist because it was previously retrieved; ignore to avoid hiding the main result.
-            pass
+        # Map eligibility status (apto/nao_apto) to solicitation workflow statuses
+        mapped_status = None
+        if status == "apto":
+            mapped_status = "aprovada"
+        elif status == "nao_apto":
+            # If there are pending items, mark as documentation incomplete; else rejected
+            mapped_status = "documentacao_incompleta" if pendencias else "reprovada"
+
+        if mapped_status:
+            try:
+                self._solicitation_repository.update_status(
+                    solicitation_id, mapped_status
+                )
+            except SolicitationNotFoundError:
+                # Solicitation must exist because it was previously retrieved; ignore to avoid hiding the main result.
+                pass
 
         metrics.increment("eligibility_processed")
         return Right(record)
+
+    @staticmethod
+    def _normalize_status(value: str) -> str:
+        """Normalize evaluator output into enum values: 'apto' | 'nao_apto'."""
+        nfkd = unicodedata.normalize("NFKD", value)
+        ascii_only = nfkd.encode("ASCII", "ignore").decode("ASCII").lower()
+        compact = re.sub(r"[^a-z]+", "", ascii_only)
+        if compact in {"apto", "eligible", "eligivel"}:
+            return "apto"
+        if compact in {
+            "naoapto",
+            "naoelegivel",
+            "ineligible",
+            "noteligible",
+            "reprovado",
+        }:
+            return "nao_apto"
+        if "nao" in compact and "apto" in compact:
+            return "nao_apto"
+        if "apto" in compact:
+            return "apto"
+        # default conservative fallback
+        return "nao_apto"
 
     def _collect_extractions(
         self, documents: List[DocumentMetadata]

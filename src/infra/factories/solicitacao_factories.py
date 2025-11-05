@@ -32,6 +32,17 @@ from src.infra.factories.classificador_factory import get_storage_gateway
 
 _descriptor_map = load_extraction_descriptors()
 
+# Map categorias do classificador -> chaves de descritores disponíveis no extrator
+_EXTRACTION_SYNONYMS = {
+    "TERMO_DE_REPRESENTACAO": "TERMO_REPRESENTACAO",
+    "PROCURACAO": "TERMO_REPRESENTACAO",
+    "GPS_E_COMPROVANTE": "GPS",
+    "CERTIFICADO_DE_REGULARIDADE": "RGP",
+    "DECLARACAO_DE_RESIDENCIA": "COMPROVANTE_RESIDENCIA",
+    "CIN": "DOCUMENTO_IDENTIDADE_RG",
+    "CPF": "DOCUMENTO_IDENTIDADE",
+}
+
 
 def _get_extraction_gateway() -> GeminiExtractionGateway:
     return GeminiExtractionGateway()
@@ -42,7 +53,9 @@ def _get_eligibility_gateway() -> GeminiEligibilityGateway:
 
 
 def _descriptor_resolver(classification: str) -> Optional[str]:
-    return _descriptor_map.get((classification or "").upper())
+    key = (classification or "").upper()
+    mapped = _EXTRACTION_SYNONYMS.get(key, key)
+    return _descriptor_map.get(mapped)
 
 
 def create_extrair_dados_use_case(session: Session) -> ExtrairDadosUseCase:

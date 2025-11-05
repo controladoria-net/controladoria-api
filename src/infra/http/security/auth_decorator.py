@@ -2,7 +2,7 @@ from typing import Dict, List, Optional, Union
 
 import backoff
 import requests
-from fastapi import Cookie, Depends, HTTPException, status
+from fastapi import Cookie, Depends, HTTPException, Header, status
 from jose import jwt, jwk
 from jose.exceptions import ExpiredSignatureError, JWTClaimsError, JWTError
 from pydantic import BaseModel, Field, ValidationError
@@ -92,16 +92,27 @@ class AuthGuard:
         )
 
     def __call__(
-        self, access_token: Optional[str] = Cookie(default=None)
+        self,
+        access_token: Optional[str] = Cookie(default=None),
+        authorization: Optional[str] = Header(default=None, alias="Authorization"),
     ) -> Optional[AuthenticatedUserEntity]:
-        if access_token is None:
+        token: Optional[str] = access_token
+        # Allow Bearer token via Authorization header as alternative to cookie
+        if (not token) and authorization:
+            try:
+                if authorization.lower().startswith("bearer "):
+                    token = authorization.split(" ", 1)[1].strip()
+            except Exception:  # pragma: no cover
+                token = None
+
+        if token is None:
             if self.required:
                 logger.debug("Token de acesso ausente (Cookie).")
                 raise self.unauthorized_exception
             return None
 
         try:
-            header = jwt.get_unverified_header(access_token)
+            header = jwt.get_unverified_header(token)
             kid = header.get("kid")
             if not kid:
                 logger.warning("Token recebido sem 'kid' no header.")
@@ -118,7 +129,7 @@ class AuthGuard:
             )
 
             payload_dict = jwt.decode(
-                token=access_token,
+                token=token,
                 key=public_key,
                 algorithms=[self.config.jwt_algorithm],
                 issuer=self.config.base_realm_url,

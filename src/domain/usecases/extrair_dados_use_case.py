@@ -76,10 +76,9 @@ class ExtrairDadosUseCase:
 
             descriptor = self._resolve_descriptor(metadata)
             if descriptor is None:
+                # Documento não suportado: ignora e segue com os demais
                 metrics.increment("document_extraction_errors")
-                return Left(
-                    UnsupportedDocumentError(metadata.classification or "desconhecido")
-                )
+                continue
 
             try:
                 file_bytes = self._storage_gateway.download(metadata.s3_key)
@@ -110,6 +109,12 @@ class ExtrairDadosUseCase:
             records.append(record)
 
         metrics.increment("document_extractions_processed", len(records))
+        if not records:
+            return Left(
+                UnsupportedDocumentError(
+                    "Nenhum documento com tipo suportado para extração."
+                )
+            )
         resolved_solicitation = None if mixed_solicitations else solicitation_id
         return Right(
             ExtractionResult(records=records, solicitation_id=resolved_solicitation)
