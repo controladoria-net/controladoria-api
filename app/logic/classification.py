@@ -1,20 +1,19 @@
-# Em: app/logic/classification.py
+# Em: app/logic/classification.py (CÓDIGO CORRIGIDO PARA TRATAR NULL COMO SUCESSO)
 
 from app.models.schemas import PescadorInput
 from datetime import date
 from dateutil.relativedelta import relativedelta
 
 # -----------------------------------------------------------------
-# ARQUIVO 2: O MÓDULO DE SCORE (LÓGICA AJUSTADA SEM O REQUISITO DE PENA)
+# ARQUIVO 2: O MÓDULO DE SCORE (LÓGICA FINAL E CORRIGIDA)
 # -----------------------------------------------------------------
 
-# Requisitos #12 e #13: Define as exceções de benefícios permitidas 
+# [cite_start]Requisitos #12 e #13: Define as exceções de benefícios permitidas [cite: 24-26]
 BENEFICIOS_PERMITIDOS = ["pensao_por_morte", "auxilio_acidente"]
 
 def processar_classificacao(dados: PescadorInput) -> dict:
     
     score = 0
-    # MUDANÇA IMPORTANTE: O total de critérios agora é 7
     total_criterios = 7
     pendencias = []
     
@@ -26,7 +25,7 @@ def processar_classificacao(dados: PescadorInput) -> dict:
     else:
         pendencias.append("RGP não está ativo ou é inválido.")
 
-    # 3. Comprovação 12m (Requisitos #1, #6, #7) [cite: 47, 86-87]
+    # [cite_start]3. Comprovação 12m (Requisitos #1, #6, #7) [cite: 47, 86-87]
     if dados.comprovou_atividade_ultimos_12m:
         score += 1
     else:
@@ -57,21 +56,23 @@ def processar_classificacao(dados: PescadorInput) -> dict:
         pendencias.append("Não foi possível checar a antiguidade do RGP (data do defeso ausente).")
 
     # 6. Sem Benefício Incompatível (Requisitos #10, #12, #13) 
-    if dados.lista_beneficios_ativos is not None:
+    
+    # --- MUDANÇA CRUCIAL AQUI ---
+    if dados.lista_beneficios_ativos is None or len(dados.lista_beneficios_ativos) == 0:
+        score += 1  # Ponto Ganho: 'null' ou lista vazia significa zero benefícios (OK)
+    else:
+        # A lista não é nula/vazia, então checa se os itens são permitidos
         incompativel_encontrado = False
         for beneficio in dados.lista_beneficios_ativos:
-            if beneficio.lower().strip() not in BENEFICIOS_PERMITIDOS:
+            if beneficio.lower().strip() and beneficio.lower().strip() not in BENEFICIOS_PERMITIDOS:
                 incompativel_encontrado = True
                 pendencias.append(f"Recebe benefício incompatível: {beneficio}.")
                 break
         if not incompativel_encontrado:
             score += 1
-    else:
-        pendencias.append("Não foi possível checar benefícios (lista de benefícios ausente).")
-
-    # 7. (ERA A CHECAGEM DE PENA) - REMOVIDO
+    # FIM DA MUDANÇA CRUCIAL
     
-    # 8. (AGORA É A CHECAGEM 7) Prazo do Requerimento (Requisito #14)
+    # 7. (AGORA É A CHECAGEM 7) Prazo do Requerimento (Requisito #14)
     if dados.requerimento_data is not None and dados.defeso_data_inicio is not None:
         if dados.requerimento_data >= dados.defeso_data_inicio:
             score += 1
