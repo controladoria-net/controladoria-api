@@ -25,7 +25,7 @@ def set_auth_cookies(response: Response, token_entity: AuthTokenEntity) -> None:
         httponly=True,
         secure=COOKIE_SECURE,
         samesite=COOKIE_SAMESITE,
-        path="/session",
+        path="/v1/session",
     )
 
 
@@ -44,5 +44,5 @@ def unset_auth_cookies(response: Response) -> None:
         httponly=True,
         secure=COOKIE_SECURE,
         samesite=COOKIE_SAMESITE,
-        path="/session",
+        path="/v1/session",
     )
