@@ -1,11 +1,13 @@
 from typing import Any, Optional
-from domain.entities.documento import ResultadoClassificacao
-from domain.entities.categorias import CategoriaDocumento
+from src.domain.entities.documento import ResultadoClassificacao
+from src.domain.entities.categorias import CategoriaDocumento
 
 
 class ClassificacaoMapper:
     @staticmethod
-    def to_domain(response_dto, documento, mimetype: Optional[Any], gemini_file: str | None = None):
+    def to_domain(
+        response_dto, documento, mimetype: Optional[Any], gemini_file: str | None = None
+    ):
         classificacao_raw = getattr(response_dto.classificacao, "type", None)
 
         if isinstance(classificacao_raw, str):
@@ -23,8 +25,12 @@ class ClassificacaoMapper:
             classificacao_enum = CategoriaDocumento.OUTRO
 
         mimetype_final = mimetype or documento.mimetype
-        if isinstance(mimetype_final, str) and not mimetype_final.startswith("application/"):
-            mimetype_final = f"application/{mimetype_final.lower().replace('application/', '')}"
+        if isinstance(mimetype_final, str) and not mimetype_final.startswith(
+            "application/"
+        ):
+            mimetype_final = (
+                f"application/{mimetype_final.lower().replace('application/', '')}"
+            )
 
         return ResultadoClassificacao(
             classificacao=classificacao_enum,

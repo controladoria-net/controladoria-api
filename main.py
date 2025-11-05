@@ -1,7 +1,11 @@
 import uvicorn
+from dotenv import load_dotenv
+
 
 from src.domain.core.logger import get_logger
 from src.infra.http.fastapi.app import create_app
+
+load_dotenv()
 
 logger = get_logger(__name__)
 app = create_app()

@@ -1,0 +1,264 @@
+export type DocumentType =
+| 'certificado_regularidade_pesqbrasil'
+| 'caepf_ecac'
+| 'declaracao_residencia'
+| 'cnis_meu_inss'
+| 'termo_representacao_procuracao'
+| 'gps_comprovante_esocial'
+| 'biometria_tse'
+| 'novo_cin_cpf'
+| 'oab_advogados'
+| 'reap_2021_2024'
+| 'outros';
+
+export type CaseStatus =
+| 'pendente'
+| 'em_analise'
+| 'aprovado'
+| 'negado'
+| 'documentacao_incompleta';
+
+export type SolicitacaoStatus =
+| 'pendente'
+| 'em_analise'
+| 'aprovada'
+| 'reprovada'
+| 'documentacao_incompleta';
+
+export type ProcessoStatus =
+| 'em_andamento'
+| 'aguardando_documentos'
+| 'deferido'
+| 'indeferido'
+| 'arquivado';
+
+export type DocumentStatus = 'presente' | 'ausente' | 'invalido' | 'vencido';
+
+export interface Document {
+id: string;
+type: DocumentType;
+name: string;
+url: string;
+uploadedAt: Date;
+status: DocumentStatus;
+expirationDate?: Date;
+}
+
+export interface Pescador {
+id: string;
+nome: string;
+cpf: string;
+rg: string;
+dataNascimento: Date;
+endereco: string;
+colonia: string;
+rgpNumero?: string;
+rgpDataEmissao?: Date;
+telefone: string;
+email?: string;
+}
+
+export interface EligibilityCheck {
+criterion: string;
+status: 'approved' | 'rejected' | 'pending' | 'warning';
+details: string;
+}
+
+export interface Analysis {
+id: string;
+caseId: string;
+score: number; // 0-100
+eligibilityChecks: EligibilityCheck[];
+missingDocuments: DocumentType[];
+inconsistencies: string[];
+recommendations: string[];
+analyzedAt: Date;
+aiConfidence: number; // 0-100
+}
+
+export interface Case {
+id: string;
+pescador: Pescador;
+status: CaseStatus;
+documents: Document[];
+analysis?: Analysis;
+createdAt: Date;
+updatedAt: Date;
+lawyerNotes?: string;
+priority: 'baixa' | 'media' | 'alta';
+// Informações processuais
+numeroProcesso?: string;
+tribunal?: string;
+orgaoJulgador?: string;
+classeProcessual?: string;
+assunto?: string;
+situacao?: string;
+dataAjuizamento?: Date;
+movimentacoes?: number;
+ultimaMovimentacao?: Date;
+}
+
+// Solicitação - Pré-análise de documentos
+export interface Solicitacao {
+id: string;
+pescador: Pescador;
+status: SolicitacaoStatus;
+documents: Document[];
+analysis?: Analysis;
+createdAt: Date;
+updatedAt: Date;
+lawyerNotes?: string;
+priority: 'baixa' | 'media' | 'alta';
+}
+
+// Processo Judicial
+export interface Processo {
+id: string;
+pescador: Pescador;
+status: ProcessoStatus;
+documents: Document[];
+numeroProcesso: string;
+tribunal: string;
+orgaoJulgador?: string;
+classeProcessual?: string;
+assunto?: string;
+situacao?: string;
+dataAjuizamento: Date;
+movimentacoes?: number;
+ultimaMovimentacao?: Date;
+createdAt: Date;
+updatedAt: Date;
+lawyerNotes?: string;
+priority: 'baixa' | 'media' | 'alta';
+solicitacaoId?: string;
+}
+
+export interface DefesoPeriod {
+id: string;
+regiao: string;
+especie: string;
+inicio: Date;
+fim: Date;
+anoReferencia: number;
+}
+
+export interface KnowledgeArticle {
+id: string;
+title: string;
+category: 'legislacao' | 'procedimentos' | 'faq' | 'modelos';
+content: string;
+lastUpdated: Date;
+tags: string[];
+}
+
+export type NotificationType =
+| 'case_created'
+| 'analysis_complete'
+| 'status_change'
+| 'document_missing'
+| 'deadline_approaching'
+| 'system'
+| 'alert';
+
+export interface Notification {
+id: string;
+type: NotificationType;
+title: string;
+message: string;
+caseId?: string;
+isRead: boolean;
+createdAt: Date;
+priority: 'low' | 'medium' | 'high';
+}
+
+// DTOs - Dados Extraídos dos Documentos pela IA
+export interface RGPDTO {
+nome?: string;
+cpf?: string;
+rgp?: number | string;
+atividade?: string;
+categoria?: string;
+data_emissao?: string; // YYYY-MM-DD
+data_primeiro_registro?: string; // YYYY-MM-DD
+situacao?: string;
+endereco?: Record<string, any>;
+orgao_emissor?: string;
+}
+
+export interface CAEPFDTO {
+nome?: string;
+cpf?: string;
+caepf?: number | string;
+data_inscricao?: string; // YYYY-MM-DD
+situacao?: string;
+atividade_principal?: string;
+codigo_cnae?: string;
+endereco?: Record<string, any>;
+municipio?: string;
+estado?: string;
+orgao_emissor?: string;
+}
+
+export interface ComprovanteResidenciaDTO {
+nome?: string;
+cpf?: string;
+endereco?: Record<string, any>;
+data_emissao?: string; // YYYY-MM-DD
+entidade_emissora?: string;
+tipo_documento?: string;
+}
+
+export interface CNISDTO {
+nome?: string;
+cpf?: string;
+nis?: string;
+categoria?: string;
+periodo_aquisitivo_defeso?: boolean;
+outros_vinculos?: string[];
+beneficios_ativos?: string[];
+data_inicio_atividade?: string; // YYYY-MM-DD
+data_fim_atividade?: string; // YYYY-MM-DD
+situacao_vinculo?: string;
+}
+
+export interface TermoRepresentacaoDTO {
+nome_pescador?: string;
+advogados?: string[];
+assinatura_pescador?: boolean;
+data_emissao?: string; // YYYY-MM-DD
+validade?: string; // YYYY-MM-DD
+orgao_emissor?: string;
+}
+
+export interface GPSDTO {
+nome?: string;
+cpf?: string;
+codigo_pagamento?: string;
+competencia?: string; // MM/YYYY
+valor_pago?: number;
+data_pagamento?: string; // YYYY-MM-DD
+banco?: string;
+periodo_apuracao?: string;
+}
+
+export interface BiometriaDTO {
+nome?: string;
+cpf?: string;
+titulo_eleitor?: string;
+municipio?: string;
+estado?: string;
+biometria_coletada?: boolean;
+data_emissao?: string; // YYYY-MM-DD
+}
+
+export interface DocumentoIdentidadeDTO {
+nome?: string;
+cpf?: string;
+documento_existe?: boolean;
+}
+
+export interface REAPDTO {
+anos_verificados?: number[];
+anos_faltando?: number[];
+completo?: boolean;
+}

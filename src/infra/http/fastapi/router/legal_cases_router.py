@@ -1,75 +1,86 @@
-from fastapi import APIRouter, Body, Depends
+from __future__ import annotations
 
-from src.domain.core.logger import get_logger
-from src.domain.entities.auth import AuthenticatedUserEntity
-from src.domain.usecases.find_legal_case_use_case import FindLegalCaseUseCase
-from src.infra.http.dto.general_response_dto import GeneralResponseDTO
-from src.infra.http.dto.legal_case_request_dto import LegalCaseRequestDTO
-from src.infra.factories.create_find_legal_case_use_case import (
-    create_find_legal_case_use_case,
+from fastapi import APIRouter, Depends, Query, status
+from fastapi.responses import JSONResponse
+
+from src.domain.core.errors import (
+    ExternalRateLimitError,
+    InvalidInputError,
+    LegalCaseNotFoundError,
 )
+from src.domain.entities.auth import AuthenticatedUserEntity
+from src.domain.usecases.build_process_dashboard_use_case import (
+    BuildProcessDashboardUseCase,
+)
+from src.domain.usecases.get_legal_case_by_id_use_case import GetLegalCaseByIdUseCase
+from src.infra.database.session import get_session
+from src.infra.factories.legal_case_factories import (
+    create_get_legal_case_by_id_use_case,
+    create_process_dashboard_use_case,
+)
+from src.infra.http.dto.general_response_dto import GeneralResponseDTO
+from src.infra.http.mapper.process_mapper import ProcessMapper
 from src.infra.http.security.auth_decorator import AuthenticatedUser
 
 router = APIRouter(prefix="/processos", tags=["Processos"])
-logger = get_logger(__name__)
-
-# ajustar
-# @router.get("/processos/atualizar")
-# async def forcar_atualizacao():
-#     """
-#     Força atualização manual de todos os processos salvos.
-#     """
-#     await atualizar_processos()
-#     return {"message": "Atualização forçada concluída"}
 
 
-# revisar
-# @router.get("/processos/{legal_case_id:regex(\d{20})}", response_model=LegalCase)
-# async def obter_processo(legal_case_id: str):
-#     """
-#     Retorna os dados completos de um processo específico.
-#     """
-#     if legal_case_id not in processos_db:
-#         raise HTTPException(status_code=404, detail="Processo não encontrado")
-#     return processos_db[numero]
-
-
-@router.post("/consultar", response_model=GeneralResponseDTO)
-async def find_legal_cases(
-    request_dto: LegalCaseRequestDTO = Body(...),
-    use_case: FindLegalCaseUseCase = Depends(create_find_legal_case_use_case),
+@router.get("/consultar/{case_number}", response_model=GeneralResponseDTO)
+def consultar_processo(
+    case_number: str,
+    session=Depends(get_session),
     current_user: AuthenticatedUserEntity = AuthenticatedUser,
 ):
-    logger.info("Usuário %s iniciando consulta de processos.", current_user.id)
-    success_results = []
-    error_list = []
+    use_case: GetLegalCaseByIdUseCase = create_get_legal_case_by_id_use_case(session)
+    result = use_case.execute(case_number)
+    if result.is_left():
+        error = result.get_left()
+        if isinstance(error, InvalidInputError):
+            status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+        elif isinstance(error, LegalCaseNotFoundError):
+            status_code = status.HTTP_404_NOT_FOUND
+        elif isinstance(error, ExternalRateLimitError):
+            status_code = status.HTTP_429_TOO_MANY_REQUESTS
+        else:
+            status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        response = GeneralResponseDTO(errors=[{"message": error.message}])
+        return JSONResponse(status_code=status_code, content=response.model_dump())
 
-    for number in request_dto.process_numbers:
-        logger.info("Consultando API externa para %s", number)
-        try:
-            legal_case = use_case.execute(number)
+    persisted = result.get_right()
+    dto = ProcessMapper.case_to_dto(persisted)
+    return GeneralResponseDTO(data=dto.model_dump())
 
-            if legal_case:
-                success_results.append(legal_case)
-            else:
-                error_list.append(
-                    {
-                        "process_number": number,
-                        "message": "Processo não encontrado em nenhuma das fontes de dados.",
-                    }
-                )
 
-        except Exception as e:
-            # Erro: falha na comunicação com a API ou outro erro inesperado
-            logger.error("Falha ao consultar o gateway para %s: %s", number, e)
-            error_list.append(
-                {
-                    "process_number": number,
-                    "message": f"Ocorreu um erro inesperado ao consultar o processo. Detalhe: {str(e)}",
-                }
-            )
-
-    return GeneralResponseDTO(
-        data=success_results if success_results else None,
-        errors=error_list if error_list else None,
+@router.get("/dashboard", response_model=GeneralResponseDTO)
+def dashboard_processos(
+    session=Depends(get_session),
+    current_user: AuthenticatedUserEntity = AuthenticatedUser,
+    status_filter: list[str] | None = Query(default=None, alias="status"),
+    priority: list[str] | None = Query(default=None),
+    tribunal: list[str] | None = Query(default=None),
+    date_from: str | None = Query(default=None),
+    date_to: str | None = Query(default=None),
+    sort_field: str | None = Query(default=None),
+    sort_dir: str = Query(default="desc"),
+):
+    use_case: BuildProcessDashboardUseCase = create_process_dashboard_use_case(session)
+    result = use_case.execute(
+        date_from=date_from,
+        date_to=date_to,
+        status=status_filter,
+        priority=priority,
+        tribunal=tribunal,
+        sort_field=sort_field,
+        sort_direction=sort_dir,
     )
+    if result.is_left():
+        error = result.get_left()
+        response = GeneralResponseDTO(errors=[{"message": error.message}])
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content=response.model_dump(),
+        )
+
+    aggregation = result.get_right()
+    dto = ProcessMapper.dashboard_to_dto(aggregation.data)
+    return GeneralResponseDTO(data=dto.model_dump())

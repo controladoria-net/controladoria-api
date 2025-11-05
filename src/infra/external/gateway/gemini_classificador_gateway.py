@@ -4,15 +4,16 @@ import tempfile
 import os
 from pydantic import ValidationError
 from dotenv import load_dotenv
-
 import google.genai as genai
 
-from domain.gateway.classificador_gateway import IClassificadorGateway
-from domain.entities.documento import DocumentoProcessar, ResultadoClassificacao
-from domain.entities.categorias import CategoriaDocumento
-from infra.external.prompts.prompt_classificador import PROMPT_MESTRE
-from infra.external.dto.gemini_dto import GeminiResponseDTO
-from infra.external.mapper.classificacao_mapper import ClassificacaoMapper
+from src.domain.core.logger import get_logger
+from src.domain.gateway.classificador_gateway import IClassificadorGateway
+from src.domain.entities.documento import DocumentoProcessar, ResultadoClassificacao
+from src.domain.entities.categorias import CategoriaDocumento
+from src.infra.external.prompts.prompt_classificador import PROMPT_MESTRE
+from src.infra.external.dto.gemini_dto import GeminiResponseDTO
+from src.infra.external.mapper.classificacao_mapper import ClassificacaoMapper
+from src.infra.external.gateway.gemini_client import get_gemini_client
 
 
 class GeminiClassificadorGateway(IClassificadorGateway):
@@ -20,20 +21,25 @@ class GeminiClassificadorGateway(IClassificadorGateway):
     def __init__(self):
         self.model_name: str = "gemini-2.5-flash"
         self.generation_config: dict | None = {"response_mime_type": "application/json"}
+        self._logger = get_logger(__name__)
 
     def configurar(self):
         load_dotenv()
 
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
-            raise ValueError("Chave de API não encontrada (GOOGLE_API_KEY). Configure a variável de ambiente.")
+            raise ValueError(
+                "Chave de API não encontrada (GOOGLE_API_KEY). Configure a variável de ambiente."
+            )
 
-                
-        self.client = genai.Client(api_key=api_key)
+        self.client = get_gemini_client()
 
     def classificar(self, documento: DocumentoProcessar) -> ResultadoClassificacao:
         tmp_path = None
         try:
+            # Ensure client is initialized (defensive in case factory wasn't used)
+            if not hasattr(self, "client") or self.client is None:
+                self.configurar()
             # 1) lê bytes do stream
             documento.file_object.seek(0)
             raw = documento.file_object.read()
@@ -67,16 +73,25 @@ class GeminiClassificadorGateway(IClassificadorGateway):
                 },
             )
 
-            file_uri = getattr(uploaded, "uri", None) or getattr(uploaded, "name", None) or getattr(uploaded, "id", None)
+            file_uri = (
+                getattr(uploaded, "uri", None)
+                or getattr(uploaded, "name", None)
+                or getattr(uploaded, "id", None)
+            )
             uploaded_mime = getattr(uploaded, "mime_type", None) or documento.mimetype
 
             if not file_uri:
                 part_for_contents = uploaded
             else:
                 try:
-                    part_for_contents = genai.types.Part.from_uri(file_uri=file_uri, mime_type=uploaded_mime)
+                    part_for_contents = genai.types.Part.from_uri(
+                        file_uri=file_uri, mime_type=uploaded_mime
+                    )
                 except Exception:
-                    part_for_contents = {"file_uri": file_uri, "mime_type": uploaded_mime}
+                    part_for_contents = {
+                        "file_uri": file_uri,
+                        "mime_type": uploaded_mime,
+                    }
 
             # 5) chamada ao modelo pedindo JSON
             contents = [
@@ -125,13 +140,21 @@ class GeminiClassificadorGateway(IClassificadorGateway):
                 documento=documento,
                 gemini_file=file_uri if file_uri else None,
                 mimetype=mimetype_normalizado,
-            )   
+            )
 
         except (json.JSONDecodeError, ValidationError) as e:
-            return self._criar_resultado_erro(documento, CategoriaDocumento.ERRO_DE_FORMATO)
+            self._logger.warning(
+                "Resposta inválida do modelo (JSON/Schema): %s", e, exc_info=True
+            )
+            return self._criar_resultado_erro(
+                documento, CategoriaDocumento.ERRO_DE_FORMATO
+            )
 
         except Exception as e:
-            return self._criar_resultado_erro(documento, CategoriaDocumento.ERRO_NA_CLASSIFICACAO)
+            self._logger.error("Falha ao classificar no Gemini: %s", e, exc_info=True)
+            return self._criar_resultado_erro(
+                documento, CategoriaDocumento.ERRO_NA_CLASSIFICACAO
+            )
 
         finally:
             try:
@@ -152,8 +175,9 @@ class GeminiClassificadorGateway(IClassificadorGateway):
                 return f"application/{mimetype.lower()}"
         return mimetype
 
-
-    def _criar_resultado_erro(self, documento: DocumentoProcessar, tipo_erro: CategoriaDocumento) -> ResultadoClassificacao:
+    def _criar_resultado_erro(
+        self, documento: DocumentoProcessar, tipo_erro: CategoriaDocumento
+    ) -> ResultadoClassificacao:
         return ResultadoClassificacao(
             classificacao=tipo_erro,
             confianca=0.0,

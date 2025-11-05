@@ -7,6 +7,7 @@ from jose import jwt, jwk
 from jose.exceptions import ExpiredSignatureError, JWTClaimsError, JWTError
 from pydantic import BaseModel, Field, ValidationError
 
+from src.domain.core.context import set_user_id
 from src.domain.core.logger import get_logger
 from src.domain.entities.auth import AuthenticatedUserEntity
 from src.infra.external.keycloak.keycloak_config import (
@@ -138,6 +139,7 @@ class AuthGuard:
 
             payload = JwtPayload.model_validate(payload_dict)
 
+            set_user_id(payload.sub)
             return AuthenticatedUserEntity(
                 id=payload.sub,
                 username=payload.preferred_username,
