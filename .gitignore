@@ -1,3 +1,15 @@
+# Arquivos do Ambiente Virtual
+# Nunca deve ser enviado para o repositório
+venv/
+.venv/
+
+# Arquivos de Cache do Python
+# São arquivos temporários gerados automaticamente
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
 # Byte-code files
 *.pyc
 __pycache__/
