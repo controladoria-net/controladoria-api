@@ -1,8 +1,13 @@
+import os
+
+from dotenv import load_dotenv
 from fastapi import Response
 
 from src.domain.entities.auth import AuthTokenEntity
 
-COOKIE_SECURE = False
+load_dotenv()
+
+COOKIE_SECURE = os.getenv("ENVIRONMENT") == "PROD"
 COOKIE_SAMESITE = "strict"
 
 
