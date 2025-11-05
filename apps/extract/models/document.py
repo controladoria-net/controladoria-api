@@ -501,9 +501,6 @@ DOCUMENTO_IDENTIDADE = Descriptor(
 )
 
 
-
-
-
 DOCUMENTO_IDENTIDADE_RG = Descriptor(
     name="Carteira de Identidade (RG)",
     sigla="DOCUMENTO_IDENTIDADE_RG",

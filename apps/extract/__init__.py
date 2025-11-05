@@ -52,7 +52,7 @@ def _normalize_doc_type(value: str | None) -> str:
 
 
 async def _generate_metadata(request: GetDocumentMetadataRequest) -> DocumentMetadataResponse:
-    client = genai.Client(api_key=os.environ["GENAI_API_KEY"])
+    client = genai.Client(api_key=os.environ["GOOGLE_API_KEY"])
 
     raw_content = request.content
     if isinstance(raw_content, (str, Path)):
