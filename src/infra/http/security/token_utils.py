@@ -2,7 +2,7 @@ from fastapi import Response
 
 from src.domain.entities.auth import AuthTokenEntity
 
-COOKIE_SECURE = True
+COOKIE_SECURE = False
 COOKIE_SAMESITE = "strict"
 
 

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Cookie, Depends, Response, status
 from fastapi.responses import JSONResponse
 
 from src.domain.core.logger import get_logger
+from src.domain.entities.auth import AuthenticatedUserEntity
 from src.domain.usecases.login_use_case import LoginUseCase
 from src.domain.usecases.logout_use_case import LogoutUseCase
 from src.domain.usecases.refresh_token_use_case import RefreshTokenUseCase
@@ -16,9 +17,11 @@ from src.infra.http.dto.auth_dto import (
     LoginRequestDTO,
     LogoutResponseDTO,
     TokenResponseDTO,
+    UserResponseDTO,
 )
 from src.infra.http.dto.general_response_dto import GeneralResponseDTO
 from src.infra.http.mapper.auth_mapper import AuthMapper
+from src.infra.http.security.auth_decorator import AuthenticatedUser
 from src.infra.http.security.token_utils import set_auth_cookies, unset_auth_cookies
 
 router = APIRouter(prefix="/session", tags=["Session"])
@@ -149,3 +152,21 @@ async def logout(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content=error_response.model_dump(),
         )
+
+
+@router.get(
+    "/user",
+    response_model=GeneralResponseDTO,
+    status_code=status.HTTP_200_OK,
+)
+async def get_current_user(
+    current_user: AuthenticatedUserEntity = AuthenticatedUser,
+):
+    """Retorna os dados do usuário autenticado via cookie access_token."""
+    try:
+        logger.info("Acesso a /session/user por %s", current_user.id)
+        user_dto: UserResponseDTO = AuthMapper.entity_to_user_response_dto(current_user)
+        return GeneralResponseDTO(data=user_dto)
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        logger.error("Erro interno no endpoint /session/user: %s", exc, exc_info=True)
+        raise

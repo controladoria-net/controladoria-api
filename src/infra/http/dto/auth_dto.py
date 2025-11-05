@@ -1,3 +1,5 @@
+from typing import List, Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -22,3 +24,14 @@ class LogoutResponseDTO(BaseModel):
     """DTO de resposta para logout."""
 
     message: str = Field(default="Logout realizado com sucesso.")
+
+
+class UserResponseDTO(BaseModel):
+    """DTO com os dados do usuário autenticado."""
+
+    id: str
+    username: str
+    email: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    roles: List[str] = Field(default_factory=list)
