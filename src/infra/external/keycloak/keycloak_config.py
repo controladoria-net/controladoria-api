@@ -20,7 +20,25 @@ class KeycloakConfig:
 
         # JWT settings
         self.jwt_algorithm = os.environ.get("JWT_ALGORITHM", "RS256")
-        self.jwt_audience = os.environ.get("JWT_AUDIENCE", self.client_id)
+
+        audience_env = os.environ.get("JWT_AUDIENCE")
+        if audience_env is not None:
+            parsed_audiences = [
+                aud.strip() for aud in audience_env.split(",") if aud.strip()
+            ]
+            self.jwt_audiences = parsed_audiences or [self.client_id]
+        else:
+            # Default to the client_id and include 'account' which Keycloak commonly sets.
+            self.jwt_audiences = [self.client_id, "account"]
+
+        if self.client_id not in self.jwt_audiences:
+            self.jwt_audiences.append(self.client_id)
+        if "account" not in self.jwt_audiences:
+            self.jwt_audiences.append("account")
+        self.jwt_audiences = list(dict.fromkeys(self.jwt_audiences))
+        self.jwt_audience = (
+            self.jwt_audiences if len(self.jwt_audiences) > 1 else self.jwt_audiences[0]
+        )
 
 
 @lru_cache(maxsize=1)

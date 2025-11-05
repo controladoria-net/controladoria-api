@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import backoff
 import requests
@@ -27,7 +27,7 @@ class JwtPayload(BaseModel):
     iat: int
     jti: str
     iss: str
-    aud: str
+    aud: Union[str, List[str]]
     typ: str
     azp: str
     preferred_username: str
@@ -120,9 +120,21 @@ class AuthGuard:
                 token=access_token,
                 key=public_key,
                 algorithms=[self.config.jwt_algorithm],
-                audience=self.config.jwt_audience,
                 issuer=self.config.base_realm_url,
+                options={"verify_aud": False},
             )
+
+            aud_claim = payload_dict.get("aud")
+            if isinstance(aud_claim, str):
+                audience_values = [aud_claim]
+            elif isinstance(aud_claim, list):
+                audience_values = [str(value) for value in aud_claim]
+            else:
+                audience_values = []
+
+            if not any(aud in self.config.jwt_audiences for aud in audience_values):
+                logger.warning("Audience '%s' não autorizada.", aud_claim)
+                raise self.unauthorized_exception
 
             payload = JwtPayload.model_validate(payload_dict)
 

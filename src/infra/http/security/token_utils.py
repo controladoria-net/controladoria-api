@@ -2,7 +2,7 @@ from fastapi import Response
 
 from src.domain.entities.auth import AuthTokenEntity
 
-COOKIE_SECURE = False
+COOKIE_SECURE = True
 COOKIE_SAMESITE = "strict"
 
 
@@ -25,7 +25,7 @@ def set_auth_cookies(response: Response, token_entity: AuthTokenEntity) -> None:
         httponly=True,
         secure=COOKIE_SECURE,
         samesite=COOKIE_SAMESITE,
-        path="/v1/session",
+        path="/session",
     )
 
 
@@ -44,5 +44,5 @@ def unset_auth_cookies(response: Response) -> None:
         httponly=True,
         secure=COOKIE_SECURE,
         samesite=COOKIE_SAMESITE,
-        path="/v1/session",
+        path="/session",
     )
