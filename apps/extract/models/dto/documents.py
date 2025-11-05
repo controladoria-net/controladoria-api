@@ -63,6 +63,7 @@ class CNISDTO:
 class TermoRepresentacaoDTO:
     nome_pescador: Optional[str] = None
     advogados: List[str] = field(default_factory=list)
+    advogado_obrigatorio_presente: Optional[bool] = None
     assinatura_pescador: Optional[bool] = None
     data_emissao: Optional[str] = None  # YYYY-MM-DD
     validade: Optional[str] = None  # YYYY-MM-DD
@@ -100,6 +101,15 @@ class DocumentoIdentidadeDTO:
 
 
 @dataclass
+class DocumentoIdentidadeRGDTO:
+    nome: Optional[str] = None
+    cpf: Optional[str] = None
+    documento_existe: Optional[bool] = None
+    cpf_encontrado: Optional[bool] = None
+    documento_modelo_novo: Optional[bool] = None
+
+
+@dataclass
 class REAPDTO:
     anos_verificados: List[int] = field(default_factory=list)
     anos_faltando: List[int] = field(default_factory=list)
@@ -118,6 +128,7 @@ DTO_REGISTRY: Dict[str, DTOType] = {
     "BIOMETRIA": BiometriaDTO,
     "RELATORIO_ATIVIDADE_PESQUEIRA": REAPDTO,
     "DOCUMENTO_IDENTIDADE": DocumentoIdentidadeDTO,
+    "DOCUMENTO_IDENTIDADE_RG": DocumentoIdentidadeRGDTO,
 }
 
 
@@ -148,6 +159,7 @@ __all__ = [
     "ComprovanteResidenciaDTO",
     "DTO_REGISTRY",
     "DocumentoIdentidadeDTO",
+    "DocumentoIdentidadeRGDTO",
     "GPSDTO",
     "RGPDTO",
     "REAPDTO",

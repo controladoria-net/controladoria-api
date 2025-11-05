@@ -289,19 +289,29 @@ TERMO_REPRESENTACAO = Descriptor(
     name="Termo de Representação e Procuração",
     sigla="TERMO_REPRESENTACAO",
     instruction="""
-        O Termo de Representação e Procuração é o documento que autoriza advogados a representar o pescador em processos administrativos e judiciais, como solicitações de seguro-defeso ou regularização de registros.
+        O Termo de Representação e Procuração é o documento pelo qual o pescador (outorgante)
+        autoriza advogados a representá-lo em processos administrativos e judiciais.
 
-        O documento deve conter os seguintes elementos essenciais:
-        - Nome completo do pescador (outorgante);
-        - Nome(s) do(s) advogado(s) responsável(is);
-        - Data de emissão e/ou validade;
-        - Assinatura do pescador;
-        - Identificação do tipo de documento (Termo, Procuração, Autorização, etc.);
-        - Cabeçalho institucional (caso emitido por escritório ou entidade reconhecida).
+        O documento pode chegar em dois arquivos separados (ex.: frente e verso). Analise o conjunto completo
+        para verificar as informações antes de responder.
 
-        ⚠️ Regras adicionais:
-        - Verificar se o advogado "Rhycleyson Campos Paiva Martins" consta obrigatoriamente;
-        - Confirmar se o documento está assinado pelo pescador.
+        O documento deve conter:
+        - Identificação clara do pescador (nome completo);
+        - Nome(s) do(s) advogado(s) responsável(is) pela representação;
+        - Data de emissão ou validade;
+        - Assinatura do pescador.
+
+        ⚖️ Regras específicas obrigatórias:
+        - O advogado **Rhycleyson Campos Paiva Martins** deve constar obrigatoriamente;
+        - Se o nome **Carlos Magno Martins Cavaignac** constar, inclua-o na lista normalmente;
+        - Caso o advogado obrigatório não apareça, retorne mesmo assim os dados extraídos,
+          mas registre `advogado_obrigatorio_presente = false`;
+        - Verifique se o documento está assinado pelo pescador (assinatura manuscrita ou digital identificável).
+
+        ⚠️ Atenção:
+        - Utilize OCR caso seja um PDF escaneado ou fotos;
+        - Retorne somente o que está explícito nos arquivos analisados;
+        - Não invente dados.
     """,
     response_mime_type="application/json",
     response_schema=types.Schema(
@@ -310,15 +320,39 @@ TERMO_REPRESENTACAO = Descriptor(
             "nome_pescador": nome,
             "advogados": types.Schema(
                 type=GType.ARRAY,
-                items=types.Schema(type=GType.STRING, description="Nome do advogado responsável."),
-                description="Lista dos advogados citados no termo.",
+                description="Lista dos nomes dos advogados encontrados no termo.",
+                items=types.Schema(
+                    type=GType.STRING,
+                    description="Nome do advogado mencionado no documento."
+                ),
             ),
-            "assinatura_pescador": types.Schema(type=GType.BOOLEAN, description="Indica se o documento está assinado pelo pescador."),
+            "advogado_obrigatorio_presente": types.Schema(
+                type=GType.BOOLEAN,
+                description="True se 'Rhycleyson Campos Paiva Martins' estiver presente na lista de advogados."
+            ),
+            "assinatura_pescador": types.Schema(
+                type=GType.BOOLEAN,
+                description="True se houver assinatura do pescador no documento (digital ou manuscrita).",
+            ),
             "data_emissao": data_emissao,
-            "validade": types.Schema(type=GType.STRING, format="date", description="Data de validade, se constar."),
-            "orgao_emissor": types.Schema(type=GType.STRING, description="Nome do escritório ou entidade emissora do termo.", nullable=True),
+            "validade": types.Schema(
+                type=GType.STRING,
+                format="date",
+                description="Data de validade do termo, se constar no documento.",
+                nullable=True,
+            ),
+            "orgao_emissor": types.Schema(
+                type=GType.STRING,
+                description="Nome do escritório, entidade ou advogado responsável pela emissão.",
+                nullable=True,
+            ),
         },
-        required=["nome_pescador", "advogados", "assinatura_pescador", "data_emissao"],
+        required=[
+            "nome_pescador",
+            "advogados",
+            "advogado_obrigatorio_presente",
+            "assinatura_pescador",
+        ],
     ),
 )
 
@@ -468,6 +502,47 @@ DOCUMENTO_IDENTIDADE = Descriptor(
 
 
 
+
+
+DOCUMENTO_IDENTIDADE_RG = Descriptor(
+    name="Carteira de Identidade (RG)",
+    sigla="DOCUMENTO_IDENTIDADE_RG",
+    instruction="""
+        Analise o RG enviado e confirme se se trata de um documento válido.
+
+        Regras obrigatórias:
+        - O documento deve apresentar o CPF do titular. Marque `cpf_encontrado` como false quando ele não aparecer;
+        - Verifique se o RG corresponde ao modelo novo (presença de QR Code e CPF impresso). Se não identificar esses elementos, marque como false;
+        - Caso não seja possível confirmar a existência de um RG, retorne `documento_existe` como false.
+    """,
+    response_mime_type="application/json",
+    response_schema=types.Schema(
+        type=GType.OBJECT,
+        properties={
+            "nome": nome,
+            "cpf": cpf,
+            "documento_existe": types.Schema(
+                type=GType.BOOLEAN,
+                description="True quando houver um RG legível no conteúdo analisado.",
+            ),
+            "cpf_encontrado": types.Schema(
+                type=GType.BOOLEAN,
+                description="True se o CPF do titular estiver visível no RG.",
+            ),
+            "documento_modelo_novo": types.Schema(
+                type=GType.BOOLEAN,
+                description="True se o RG for do modelo novo (com QR Code e CPF impresso).",
+            ),
+        },
+        required=[
+            "documento_existe",
+            "cpf_encontrado",
+            "documento_modelo_novo",
+        ],
+    ),
+)
+
+
 type Type = Literal[
     "CADASTRO_NACIONAL_INFORMACAO_SOCIAL",
     "CADASTRO_ATIVIDADE_ECONOMICA_PESSOA_FISICA",
@@ -478,6 +553,7 @@ type Type = Literal[
     "BIOMETRIA",
     "RELATORIO_ATIVIDADE_PESQUEIRA",
     "DOCUMENTO_IDENTIDADE",
+    "DOCUMENTO_IDENTIDADE_RG",
 ]
 
 REGISTRY: dict[Type, Descriptor] = {
@@ -490,4 +566,5 @@ REGISTRY: dict[Type, Descriptor] = {
     "BIOMETRIA": BIOMETRIA,
     "RELATORIO_ATIVIDADE_PESQUEIRA": REAP,
     "DOCUMENTO_IDENTIDADE": DOCUMENTO_IDENTIDADE,
+    "DOCUMENTO_IDENTIDADE_RG": DOCUMENTO_IDENTIDADE_RG,
 }
