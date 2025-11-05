@@ -1,55 +1,50 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.exceptions import HTTPException
 
-from src.infra.http.dto.general_response_dto import GeneralResponseDTO
-from src.infra.http.fastapi.router import legal_cases_router
-
-
-app = FastAPI(
-    title="API para gestão de tarefas de um escritório de advocacia",
-    version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+from src.infra.http.fastapi.exception_handlers import (
+    generic_exception_handler,
+    http_exception_handler,
+    validation_exception_handler,
 )
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+from src.infra.http.fastapi.router.legal_cases_router import (
+    router as legal_cases_router,
 )
+from src.infra.http.fastapi.router.session_router import router as session_router
 
 
-async def get_validation_exception_handler(_, exc: RequestValidationError):
-    return JSONResponse(
-        status_code=400,
-        content=GeneralResponseDTO(
-            data=None,
-            errors=[
-                {
-                    "message": "Verifique os dados enviados na requisição.",
-                    "details": exc.errors(),
-                }
-            ],
-        ),
+def create_app() -> FastAPI:
+    fastapi_app = FastAPI(
+        title="ControladorIA API",
+        description="API para o ERP de escritório de advocacia.",
+        version="1.0.0",
+        docs_url="/docs",
+        redoc_url="/redoc",
     )
 
+    fastapi_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
-app.add_exception_handler(
-    RequestValidationError, handler=get_validation_exception_handler
-)
+    fastapi_app.add_exception_handler(HTTPException, http_exception_handler)
+    fastapi_app.add_exception_handler(
+        RequestValidationError, validation_exception_handler
+    )
+    fastapi_app.add_exception_handler(Exception, generic_exception_handler)
+
+    fastapi_app.include_router(session_router)
+    fastapi_app.include_router(legal_cases_router)
+
+    @fastapi_app.get("/health", tags=["HealthCheck"])
+    async def health_check():
+        return {"status": "ok"}
+
+    return fastapi_app
 
 
-@app.get("/", response_model=dict)
-async def root():
-    return {
-        "message": "API para gestão de tarefas de um escritório de advocacia",
-        "version": "1.0.0",
-        "docs": "/docs",
-    }
-
-
-app.include_router(legal_cases_router.router)
+app = create_app()

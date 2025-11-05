@@ -1,10 +1,10 @@
-from typing import Dict, Tuple, Optional
+from typing import Dict, Optional, Tuple
 
-from src.domain.core.logger import logging
+from src.domain.core.logger import get_logger
 from src.domain.entities.case import CNJNumber, LegalCase
 from src.domain.gateway.legal_case_gateway import LegalCaseGateway
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 COURT_CODE_MAP: Dict[Tuple[str, str], str] = {

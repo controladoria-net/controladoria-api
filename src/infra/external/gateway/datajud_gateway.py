@@ -1,10 +1,11 @@
 import os
 from typing import Dict, Optional
-from dotenv import load_dotenv
-import requests
 
+import requests
+from dotenv import load_dotenv
+
+from src.domain.core.logger import get_logger
 from src.domain.entities.case import CNJNumber, LegalCase
-from src.domain.core.logger import logging
 from src.domain.gateway.legal_case_gateway import LegalCaseGateway
 from src.infra.external.dto.legal_case_dto import LegalCaseRawDTO
 from src.infra.external.mapper.legal_case_mapper import LegalCaseMapper
@@ -12,7 +13,7 @@ from src.infra.external.mapper.legal_case_mapper import LegalCaseMapper
 load_dotenv()
 DATAJUD_API_KEY = os.getenv("DATAJUD_API_KEY")
 DATAJUD_URL = os.getenv("DATAJUD_URL")
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class DataJudGateway(LegalCaseGateway):

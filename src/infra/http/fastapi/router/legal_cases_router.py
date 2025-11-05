@@ -1,14 +1,17 @@
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Depends
 
-from src.domain.core.logger import logging
+from src.domain.core.logger import get_logger
+from src.domain.entities.auth import AuthenticatedUserEntity
+from src.domain.usecases.find_legal_case_use_case import FindLegalCaseUseCase
 from src.infra.http.dto.general_response_dto import GeneralResponseDTO
 from src.infra.http.dto.legal_case_request_dto import LegalCaseRequestDTO
 from src.infra.factories.create_find_legal_case_use_case import (
     create_find_legal_case_use_case,
 )
+from src.infra.http.security.auth_decorator import AuthenticatedUser
 
 router = APIRouter(prefix="/processos", tags=["Processos"])
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ajustar
 # @router.get("/processos/atualizar")
@@ -32,11 +35,14 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/consultar", response_model=GeneralResponseDTO)
-async def find_legal_cases(request_dto: LegalCaseRequestDTO = Body(...)):
+async def find_legal_cases(
+    request_dto: LegalCaseRequestDTO = Body(...),
+    use_case: FindLegalCaseUseCase = Depends(create_find_legal_case_use_case),
+    current_user: AuthenticatedUserEntity = AuthenticatedUser,
+):
+    logger.info("Usuário %s iniciando consulta de processos.", current_user.id)
     success_results = []
     error_list = []
-
-    use_case = create_find_legal_case_use_case()
 
     for number in request_dto.process_numbers:
         logger.info("Consultando API externa para %s", number)
