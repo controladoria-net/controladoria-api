@@ -1,0 +1,22 @@
+networks:
+  api-net:
+    driver: bridge
+
+services:
+  backend-db:
+    image: postgres:15-alpine
+    container_name: backend-postgresql
+    volumes:
+      - /var/lib/postgresql/data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: controladoriadb
+      POSTGRES_USER: controladoriadb
+      POSTGRES_PASSWORD: controladoriadb
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U controladoriadb -d controladoriadb']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - api-net

@@ -17,6 +17,11 @@ disable=
       E0213,  # no-self-argument
       R0902,  # too-many-instance-attributes
       E0602,  # undefined-variable
+      R0913,  # Too many arguments
+      R0917,  # Too many positional arguments
+      W0622,  # Redefining built-in 'id'
+      W0212,  # Access to a protected member
+      W3101,  # Missing timeout argument for method 'requests.post' can cause your program to hang indefinitely
 
 
 # Analyse import fallback blocks. This can be used to support both Python 2 and
