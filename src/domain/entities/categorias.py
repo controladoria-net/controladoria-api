@@ -1,6 +1,6 @@
-from enum import Enum
+from enum import StrEnum
 
-class CategoriaDocumento(str, Enum):
+class CategoriaDocumento(StrEnum):
     CERTIFICADO_DE_REGULARIDADE = "CERTIFICADO_DE_REGULARIDADE"
     CAEPF = "CAEPF"
     DECLARACAO_DE_RESIDENCIA = "DECLARACAO_DE_RESIDENCIA"
@@ -12,6 +12,7 @@ class CategoriaDocumento(str, Enum):
     CIN = "CIN"
     CPF = "CPF"
     REAP = "REAP"
+    DECLARACAO_DE_FILIACAO = "DECLARACAO_DE_FILIACAO"
     OUTRO = "OUTRO"
 
     @classmethod
