@@ -12,11 +12,7 @@ class CategoriaDocumento(str, Enum):
     CIN = "CIN"
     CPF = "CPF"
     REAP = "REAP"
-    
     OUTRO = "OUTRO"
-    ERRO_NA_CLASSIFICACAO = "ERRO_NA_CLASSIFICACAO"
-    ERRO_DE_FORMATO = "ERRO_DE_FORMATO"
-    ERRO_NO_PROCESSAMENTO_DA_API = "ERRO_NO_PROCESSAMENTO_DA_API"
 
     @classmethod
     def _missing_(cls, value):
