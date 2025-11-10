@@ -32,7 +32,7 @@ from src.domain.usecases.document_classification_use_case import (
 )
 from src.domain.usecases.extract_data_use_case import ExtrairDadosUseCase
 from src.infra.database.session import get_session
-from src.infra.factories.classificador_factory import (
+from src.infra.factories.solicitation_factory import (
     create_classificar_documentos_usecase,
 )
 from src.infra.factories.solicitation_factory import (
