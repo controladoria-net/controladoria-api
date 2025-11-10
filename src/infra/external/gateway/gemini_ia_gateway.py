@@ -1,16 +1,15 @@
 from __future__ import annotations
-from io import BytesIO
+import functools
 import json
 import os
-import tempfile
 from typing import List
 from functools import lru_cache
 
 import google.genai as genai
-from google.genai.types import Part
+from google.genai.types import Part, GenerateContentConfig, ThinkingConfig
 from pydantic import ValidationError
 from dotenv import load_dotenv
-from PyPDF2 import PdfReader
+import yaml
 
 from src.domain.core.logger import get_logger
 from src.domain.gateway.ia_gateway import IAGateway
@@ -23,6 +22,7 @@ from src.domain.repositories.document_extraction_repository import (
     DocumentExtractionRecord,
 )
 from src.domain.repositories.solicitation_repository import SolicitationRecord
+from src.infra.external.prompts.prompt import Prompt
 from src.infra.external.prompts.prompt_classificador import PROMPT_MESTRE
 
 
@@ -32,17 +32,20 @@ class GeminiIAGateway(IAGateway):
         self.generation_config: dict | None = {"response_mime_type": "application/json"}
         self._logger = get_logger(__name__)
         self.client = get_gemini_client()
+        self._prompts = load_prompts_from_yaml()
 
-    def classificar(self, document: ClassificationDocument) -> DocumentClassification:
+    def classify(self, document: ClassificationDocument) -> DocumentClassification:
         try:
-            if document.mimetype == "application/pdf":
-                reader = PdfReader(BytesIO(document.data))
-                text = " ".join(page.extract_text() or "" for page in reader.pages)
-                file_part = Part.from_text(text=text)
-            else:
-                file_part = Part.from_bytes(
-                    data=document.data, mime_type=document.mimetype
-                )
+            # if document.mimetype == "application/pdf":
+            #     reader = PdfReader(BytesIO(document.data))
+            #     text = " ".join(page.extract_text() or "" for page in reader.pages)
+            #     file_part = Part.from_text(text=text)
+            # else:
+            #     file_part = Part.from_bytes(
+            #         data=document.data, mime_type=document.mimetype
+            #     )
+
+            file_part = Part.from_bytes(data=document.data, mime_type=document.mimetype)
 
             response = self.client.models.generate_content(
                 model=self.model_name,
@@ -74,72 +77,69 @@ class GeminiIAGateway(IAGateway):
     def extract(
         self,
         *,
-        document_type: str,
-        document_name: str,
-        mimetype: str,
+        document: DocumentMetadata,
         file_bytes: bytes,
-        descriptor: str,
     ) -> dict:
-        descriptor_text = self._compose_prompt(document_type, descriptor)
-        temp_file_path = self._write_temp_file(document_name, file_bytes)
         try:
-            upload = self._client.files.upload(
-                file=temp_file_path,
-                config={
-                    "mime_type": mimetype or "application/octet-stream",
-                    "display_name": document_name,
-                },
-            )
+            documentClassification = DocumentClassification[
+                document.classification or "OUTRO"
+            ]
+            descriptor = self._prompts.get(documentClassification.name)
+            content = [
+                {
+                    "role": "user",
+                    "parts": [
+                        {"text": descriptor.prompt},
+                        Part.from_bytes(data=file_bytes, mime_type=document.mimetype),
+                    ],
+                }
+            ]
 
-            file_uri = getattr(upload, "uri", None) or getattr(upload, "name", None)
-            part = (
-                Part.from_uri(file_uri=file_uri, mime_type=mimetype)
-                if file_uri
-                else upload
-            )
-
-            response = self._client.models.generate_content(
+            result = self._client.models.generate_content(
                 model=self._model_name,
-                contents=[
-                    {
-                        "role": "user",
-                        "parts": [
-                            {"text": descriptor_text},
-                            part,
-                        ],
-                    }
-                ],
-                config={"response_mime_type": "application/json"},
+                contents=content,
+                config=GenerateContentConfig(
+                    response_mime_type=descriptor.response_mime_type,
+                    response_schema=descriptor.response_schema,
+                    system_instruction=descriptor.system_prompt,
+                    temperature=0.2,
+                    thinking_config=ThinkingConfig(thinking_budget=0),
+                ),
             )
 
-            json_payload = self._extract_json(response)
-            if not isinstance(json_payload, dict):
-                raise ValueError(
-                    "Resposta do modelo não está em formato JSON de objeto."
-                )
-            return json_payload
-        finally:
-            if temp_file_path and os.path.exists(temp_file_path):
-                os.unlink(temp_file_path)
+            return result.parsed
 
-    @staticmethod
-    def _compose_prompt(document_type: str, descriptor: str) -> str:
-        header = (
-            "Você é uma IA especializada em extração de dados para análise jurídica. "
-            "Retorne SEMPRE um JSON válido. Documento classificado como: "
-        )
-        return f"{header}{document_type}.\n\n{descriptor}"
+            # part = (
+            #     Part.from_uri(file_uri=file_uri, mime_type=mimetype)
+            #     if file_uri
+            #     else upload
+            # )
 
-    @staticmethod
-    def _write_temp_file(document_name: str, file_bytes: bytes) -> str:
-        suffix = os.path.splitext(document_name)[1] if "." in document_name else ""
-        temp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-        try:
-            temp.write(file_bytes)
-            temp.flush()
-        finally:
-            temp.close()
-        return temp.name
+            # response = self._client.models.generate_content(
+            #     model=self._model_name,
+            #     contents=[
+            #         {
+            #             "role": "user",
+            #             "parts": [
+            #                 {"text": descriptor_text},
+            #                 part,
+            #             ],
+            #         }
+            #     ],
+            #     config={"response_mime_type": "application/json"},
+            # )
+
+            # json_payload = self._extract_json(response)
+            # if not isinstance(json_payload, dict):
+            #     raise ValueError(
+            #         "Resposta do modelo não está em formato JSON de objeto."
+            #     )
+            # return json_payload
+        except Exception as exc:
+            # TODO: remover raise e retornar um Left do either
+            raise RuntimeError(
+                f"Falha ao extrair dados com o modelo Gemini: {exc}"
+            ) from exc
 
     @staticmethod
     def _extract_json(response) -> dict:
@@ -220,7 +220,6 @@ class GeminiIAGateway(IAGateway):
         return {
             "document_id": metadata.document_id,
             "classification": metadata.classification,
-            "confidence": metadata.confidence,
             "mimetype": metadata.mimetype,
             "file_name": metadata.file_name,
             "uploaded_at": (
@@ -246,3 +245,20 @@ def get_gemini_client() -> genai.Client:
     if not api_key:
         raise ValueError("GOOGLE_API_KEY environment variable is not defined.")
     return genai.Client(api_key=api_key)
+
+
+@functools.cache
+def load_prompts_from_yaml(file_path: str = None) -> dict[str, Prompt]:
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    default_path = os.path.join(base_dir, "..", "..", "..", "..", "ia", "prompts.yml")
+
+    file_path = file_path or default_path
+
+    with open(file_path, "r", encoding="utf-8") as file:
+        data: dict = yaml.safe_load(file)
+
+    if not isinstance(data, dict) or "prompts" not in data:
+        raise ValueError("Invalid prompt YAML structure.")
+
+    prompts = map(Prompt.from_dict, data.get("prompts", []))
+    return {prompt.key: prompt for prompt in prompts}

@@ -44,6 +44,7 @@ from src.infra.factories.solicitation_factory import (
 from src.infra.http.dto.general_response_dto import GeneralResponseDTO
 from src.infra.http.mapper.solicitacao_mapper import SolicitacaoMapper
 from src.infra.http.security.auth_decorator import AuthenticatedUser
+from src.infra.database.repositories.document_repository import DocumentRepository
 
 
 router = APIRouter(prefix="/solicitacao", tags=["Solicitações"])
@@ -104,10 +105,6 @@ async def extrair_dados(
     # Permite derivar document_ids a partir do solicitation_id quando não enviados
     doc_ids: Optional[List[str]] = payload.document_ids
     if (not doc_ids or len(doc_ids) == 0) and payload.solicitation_id:
-        from src.infra.database.repositories.document_repository import (
-            DocumentRepository,
-        )
-
         repo = DocumentRepository(session)
         docs = repo.list_by_solicitation(payload.solicitation_id)
         doc_ids = [d.document_id for d in docs]

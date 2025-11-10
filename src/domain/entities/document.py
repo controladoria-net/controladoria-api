@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Optional
 
 
@@ -28,7 +28,7 @@ class DocumentMetadata:
         self.uploaded_at = uploaded_at
 
 
-class DocumentClassification(str, Enum):
+class DocumentClassification(StrEnum):
     CERTIFICADO_DE_REGULARIDADE = "CERTIFICADO_DE_REGULARIDADE"
     CAEPF = "CAEPF"
     DECLARACAO_DE_RESIDENCIA = "DECLARACAO_DE_RESIDENCIA"
@@ -37,8 +37,7 @@ class DocumentClassification(str, Enum):
     PROCURACAO = "PROCURACAO"
     GPS_E_COMPROVANTE = "GPS_E_COMPROVANTE"
     BIOMETRIA = "BIOMETRIA"
-    CIN = "CIN"
-    CPF = "CPF"
+    DOCUMENTO_IDENTIDADE = "DOCUMENTO_IDENTIDADE"
     REAP = "REAP"
     OUTRO = "OUTRO"
 

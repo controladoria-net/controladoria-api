@@ -50,12 +50,12 @@ class ClassificarDocumentosUseCase:
 
     def __init__(
         self,
-        classificador_gateway: IAGateway,
+        ia_gateway: IAGateway,
         storage_gateway: IObjectStorageGateway,
         document_repository: IDocumentRepository,
         solicitation_repository: ISolicitationRepository,
     ) -> None:
-        self._classificador_gateway = classificador_gateway
+        self._ia_gateway = ia_gateway
         self._storage_gateway = storage_gateway
         self._document_repository = document_repository
         self._solicitation_repository = solicitation_repository
@@ -121,9 +121,7 @@ class ClassificarDocumentosUseCase:
                 return Left(StorageError(str(exc)))
 
             try:
-                gatewayClassificationResult = self._classificador_gateway.classificar(
-                    document
-                )
+                gatewayClassificationResult = self._ia_gateway.classify(document)
             except Exception as exc:
                 gatewayClassificationResult = DocumentClassification.OUTRO
                 metrics.increment("document_classification_errors")

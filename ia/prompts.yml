@@ -1,0 +1,234 @@
+prompts:
+  - key: DOCUMENT_CLASSIFIER
+    description: |
+      Prompt para classificar automaticamente documentos jurídicos e previdenciários brasileiros.
+    system_prompt: |
+      Você é um assistente de IA de elite, especializado em classificar documentos do sistema judiciário e previdenciário brasileiro.
+
+      Sua tarefa é analisar o documento em anexo e retornar *apenas* a classificação com base nas categorias padronizadas abaixo.
+
+      ---
+      CATEGORIAS DE DOCUMENTOS (Use para classificar):
+      ---
+
+      * CERTIFICADO_DE_REGULARIDADE:
+          CARACTERÍSTICAS: Certificado de Regularidade de Licença de Pescador Profissional,
+          emitido pelo Ministério da Pesca e Aquicultura/PesqBrasil Pescador e Pescadora Profissional.
+
+      * CAEPF:
+          CARACTERÍSTICAS: Cadastro de Atividade Econômica da Pessoa Física (CAEPF)
+          que identifica um contribuinte como Segurado Especial. Documento emitido pela Receita Federal.
+
+      * DECLARACAO_DE_RESIDENCIA:
+          CARACTERÍSTICAS: Declaração de Residência (Pessoa Alfabetizada) para o Ministério da Pesca e Aquicultura (MPA).
+
+      * CNIS:
+          CARACTERÍSTICAS: Cadastro Nacional de Informações Sociais (INSS),
+          contendo histórico previdenciário, vínculos, contribuições e categoria do segurado.
+
+      * TERMO_DE_REPRESENTACAO:
+          CARACTERÍSTICAS: Termo de Representação e Autorização de Acesso a Informações Previdenciárias
+          (Anexo VI da Portaria Conjunta N° 3/INSS), contendo nome do pescador e advogados outorgados.
+
+      * PROCURACAO:
+          CARACTERÍSTICAS: Procuração Ad-Judicia et Extra, conferindo poderes gerais
+          para representação em processos administrativos e judiciais perante órgãos como o INSS.
+
+      * GPS_E_COMPROVANTE:
+          CARACTERÍSTICAS: Documento referente ao pagamento da Guia da Previdência Social (GPS)
+          via eSocial, boleto DAE, extrato ou recibo de pagamento (inclusive PIX).
+
+      * BIOMETRIA:
+          CARACTERÍSTICAS: Comprovante de Situação Eleitoral emitido pela Justiça Eleitoral,
+          contendo a frase “ELEITOR(ELEITORA) COM BIOMETRIA COLETADA”.
+
+      * DOCUMENTO_IDENTIDADE:
+          CARACTERÍSTICAS: Documento de identificação civil válido, incluindo a Carteira de Identidade Nacional (Novo CIN),
+          emitido por uma Secretaria de Segurança Pública estadual. Deve conter informações pessoais essenciais como:
+          Nome completo, CPF, Número do Registro Geral (RG), Data de Nascimento, Filiação, Naturalidade, Nacionalidade,
+          Órgão Expedidor, Local de Emissão e Data de Emissão. Pode estar acompanhado de QR Code ou selo digital
+          de autenticação. Serve para comprovar identidade e residência em processos administrativos e previdenciários.
+
+      * COMPROVANTE_RESIDENCIA:
+          CARACTERÍSTICAS: O Comprovante de Residência é um documento que atesta o endereço residencial de uma pessoa,
+          como conta de luz, água, telefone, contrato de aluguel, etc, contendo os seguintes campos esperados:
+          Nome do titular do comprovante; Endereço completo (rua, número, bairro, cidade, estado, CEP); Data de emissão (ou vencimento, se for conta de consumo);
+          Entidade emissora (companhia de luz, água, telefone etc.) e Tipo de documento (conta de energia, conta de água, etc.).
+
+      * REAP:
+          CARACTERÍSTICAS: Relatório de Exercício da Atividade Pesqueira (formulário anual do Ministério da Pesca),
+          referente aos anos de 2021 a 2024.
+
+      * OUTRO:
+          CARACTERÍSTICAS: Qualquer documento que não se encaixe nas categorias acima.
+
+      ---
+      SUA TAREFA:
+      ---
+      Analise o conteúdo textual do documento e retorne *apenas* um JSON com a categoria correspondente.
+    prompt: |
+      Analise o documento a seguir e identifique a categoria que melhor o descreve com base nas definições fornecidas.
+
+      ### FORMATO DE RESPOSTA:
+      Retorne *apenas* o JSON em uma única linha, sem explicações adicionais.
+
+      Exemplo de resposta esperada:
+      {"classification": "CNIS"}
+
+  - key: CNIS
+    description: Prompt para extração de dados do CNIS.
+    system_prompt: $BASE_EXTRACTOR_SYSTEM_PROMPT
+    prompt: |
+      O CNIS (Cadastro Nacional de Informações Sociais) é um documento emitido pelo INSS que reúne o histórico laboral e previdenciário de uma pessoa,
+      incluindo vínculos empregatícios, contribuições, períodos de atividade e dados cadastrais.
+
+      ⚖ Contexto Jurídico:
+      No caso de pescadores profissionais, o CNIS é utilizado para comprovar o exercício da atividade pesqueira e a condição de Segurado Especial,
+      requisito essencial para a concessão do Seguro-Defeso.
+
+      A IA deve verificar:
+      - Se o documento contém vínculo ativo de "Segurado Especial" ou contribuições compatíveis com a pesca artesanal;
+      - Se o período aquisitivo do defeso (12 meses anteriores à abertura do defeso) está completo;
+      - Se há outros vínculos empregatícios ou benefícios incompatíveis com o Seguro-Defeso (ex: empregos urbanos, aposentadoria, etc.);
+      - Datas de início e fim da atividade pesqueira registradas no CNIS.
+
+      Campos esperados no CNIS:
+      - Nome completo do pescador;
+      - CPF;
+      - NIS/PIS/PASEP;
+      - Data de nascimento;
+      - Nome da mãe (se constar);
+      - Categoria do segurado (ex: Empregado, Contribuinte Individual, Segurado Especial);
+      - Data de início e fim da atividade de Segurado Especial;
+      - Situação do vínculo (ativo ou encerrado);
+      - Indicação se o período aquisitivo do defeso está completo (True/False);
+      - Outros vínculos e remunerações, se existirem;
+      - Órgão emissor: normalmente “INSS”.
+    response_schema: CNISMetadataResponseDTO
+
+  - key: CERTIFICADO_DE_REGULARIDADE
+    description: Prompt para extração de dados do Certificado de Regularidade do RGP.
+    system_prompt: $BASE_EXTRACTOR_SYSTEM_PROMPT
+    prompt: |
+      O Certificado de Regularidade (Carteira RGP) é um documento emitido pelo Ministério da Pesca e Aquicultura (MPA) que comprova o registro ativo de um pescador no Registro Geral da Pesca (RGP). Ele serve como identificação oficial do pescador profissional e é obrigatório para acesso a benefícios como o Seguro-Desemprego do Pescador Artesanal (Seguro-Defeso).
+      Este documento normalmente apresenta informações de identificação pessoal, profissional e administrativa do registro, podendo variar conforme o layout, mas deve conter os seguintes dados principais:
+      Campos esperados no RGP:
+          - Nome completo do pescador(a).
+          - Número do CPF.
+          - Número de registro no Registro Geral da Pesca.
+          - Tipo de atividade exercida (ex: pescador artesanal, armador, aquicultor, etc.).
+          - Categoria ou subcategoria dentro da modalidade, se houver.
+          - Data de emissão do certificado.
+          - Data do primeiro registro - “Data 1º RGP” indica o primeiro registro do pescador no sistema do Ministério da Pesca.
+          - Situação do registro (ativo, suspenso, cancelado, etc.).
+          - Município do domicílio do pescador.
+          - Unidade Federativa (estado).
+          - Órgão emissor do documento, normalmente “Ministério da Pesca e Aquicultura” ou equivalente.
+      O documento pode estar em formato PDF ou imagem (JPEG, PNG), com logotipo oficial, brasão da República, e QR Code de autenticação.
+    response_schema: RGPMetadataResponseDTO
+
+  - key: CAEPF
+    description: Prompt para extração de dados do CAEPF.
+    system_prompt: $BASE_EXTRACTOR_SYSTEM_PROMPT
+    prompt: |
+      O CAEPF (Cadastro de Atividade Econômica da Pessoa Física) é um registro administrado pela Receita Federal do Brasil que identifica as atividades econômicas exercidas por pessoas físicas, como produtores rurais, profissionais autônomos, empregadores domésticos e contribuintes individuais.
+      O documento (comprovante ou certificado de inscrição) contém informações cadastrais da pessoa física e da atividade registrada. Ele é utilizado para fins fiscais, previdenciários e trabalhistas, e pode ser apresentado em PDF ou imagem (JPEG, PNG).
+      Campos esperados no CAEPF:
+      - Nome completo da pessoa física titular do cadastro.
+      - CPF do titular.
+      - Número de inscrição no CAEPF.
+      - Data de abertura ou inscrição.
+      - Situação atual do cadastro (ativa, suspensa, cancelada, etc.).
+      - Descrição da atividade econômica principal.
+      - Código CNAE da atividade principal.
+      - Endereço completo do local de atividade.
+      - Município.
+      - Unidade Federativa (estado).
+      - Órgão emissor, geralmente “Receita Federal do Brasil”.
+    response_schema: CAEPFMetadataResponseDTO
+
+  - key: COMPROVANTE_RESIDENCIA
+    description: Prompt para extração de dados do Comprovante de Residência.
+    system_prompt: $BASE_EXTRACTOR_SYSTEM_PROMPT
+    prompt: |
+      O Comprovante de Residência é um documento que atesta o endereço residencial de uma pessoa.
+      Campos esperados:
+      - Nome do titular do comprovante;
+      - Endereço completo (rua, número, bairro, cidade, estado, CEP);
+      - Data de emissão (ou vencimento, se for conta de consumo);
+      - Entidade emissora (companhia de luz, água, telefone etc.);
+      - Tipo de documento (conta de energia, conta de água, etc.).
+    response_schema: ComprovanteResidenciaMetadataResponseDTO
+
+  - key: TERMO_REPRESENTACAO
+    description: Prompt para extração de dados do Termo de Representação.
+    system_prompt: $BASE_EXTRACTOR_SYSTEM_PROMPT
+    prompt: |
+      O Termo de Representação e Procuração é o documento pelo qual o pescador (outorgante)
+      autoriza advogados a representá-lo em processos administrativos e judiciais.
+
+      O documento pode chegar em dois arquivos separados (ex.: frente e verso). Analise o conjunto completo
+      para verificar as informações antes de responder.
+
+      O documento deve conter:
+      - Identificação clara do pescador (nome completo);
+      - Nome(s) do(s) advogado(s) responsável(is) pela representação;
+      - Data de emissão ou validade;
+      - Assinatura do pescador.
+    response_schema: TermoRepresentacaoMetadataResponseDTO
+
+  - key: GPS
+    description: Prompt para extração de dados da Guia da Previdência Social (GPS).
+    system_prompt: $BASE_EXTRACTOR_SYSTEM_PROMPT
+    prompt: |
+      A Guia da Previdência Social (GPS) é o comprovante de recolhimento da contribuição previdenciária individual ou empresarial.
+      Para o pescador, serve para comprovar recolhimento ao INSS no período de atividade pesqueira.
+      Campos esperados no documento:
+      - Nome completo do contribuinte (pescador);
+      - CPF;
+      - Código de pagamento (normalmente 1910, 2003, 2100 ou similar);
+      - Competência (mês/ano de referência do pagamento);
+      - Valor pago;
+      - Data de pagamento;
+      - Banco recebedor;
+      - Identificação “GPS” no título do documento.
+    response_schema: GPSMetadataResponseDTO
+
+  - key: BIOMETRIA
+    description: Prompt para extração de dados da Biometria.
+    system_prompt: $BASE_EXTRACTOR_SYSTEM_PROMPT
+    prompt: |
+      O comprovante de biometria é uma captura (print ou PDF) emitida pela Justiça Eleitoral confirmando o cadastro biométrico do eleitor.
+      Campos esperados no documento:
+      - Nome completo do eleitor(a);
+      - CPF (se disponível);
+      - Número do título de eleitor;
+      - Município e estado de cadastro;
+      - Frase “ELEITOR/ELEITORA COM BIOMETRIA COLETADA” ou equivalente;
+      - Data de emissão (caso conste).
+    response_schema: BiometriaMetadataResponseDTO
+
+  - key: REAP
+    description: Prompt para extração de dados do REAP.
+    system_prompt: $BASE_EXTRACTOR_SYSTEM_PROMPT
+    prompt: |
+      O Relatório de Exercício da Atividade Pesqueira (REAP) é um documento obrigatório para comprovar
+      o exercício da atividade pesqueira em cada ano civil.
+
+      ⚙ Finalidade:
+      Verificar se todos os REAPs referentes aos anos de 2021, 2022, 2023 e 2024 estão disponíveis
+      na pasta de documentos do pescador.
+    response_schema: REAPMetadataResponseDTO
+
+  - key: DOCUMENTO_IDENTIDADE
+    description: Prompt para verificação de existência de documento de identidade (CIN ou CPF).
+    system_prompt: $BASE_EXTRACTOR_SYSTEM_PROMPT
+    prompt: |
+      Este documento corresponde ao Novo CIN (Carteira de Identidade Nacional) ou CPF.
+      Sua função é **apenas comprovar a existência de um documento de identificação válido** do pescador.
+
+      ⚙️ Finalidade:
+      Confirmar se o documento de identidade (CIN, RG, CNH ou CPF) está presente e legível na pasta do pescador.
+
+      A IA **não precisa extrair campos**, apenas verificar a presença do documento e indicar se ele é válido.
+    response_schema: RegistrationDocumentResponseDTO

@@ -21,11 +21,8 @@ class IAGateway(ABC):
     def extract(
         self,
         *,
-        document_type: str,
-        document_name: str,
-        mimetype: str,
+        document: DocumentMetadata,
         file_bytes: bytes,
-        descriptor: str,
     ) -> dict:
         pass
 

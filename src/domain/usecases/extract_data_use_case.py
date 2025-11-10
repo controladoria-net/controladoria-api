@@ -64,46 +64,38 @@ class ExtrairDadosUseCase:
         solicitation_id: Optional[str] = None
         mixed_solicitations = False
         for document_id in document_ids:
-            metadata = self._document_repository.get_document(document_id)
-            if metadata is None:
+            document = self._document_repository.get_document(document_id)
+            if document is None:
                 metrics.increment("document_extraction_errors")
                 return Left(DocumentNotFoundError(document_id))
 
             if solicitation_id is None:
-                solicitation_id = metadata.solicitation_id
-            elif solicitation_id != metadata.solicitation_id:
+                solicitation_id = document.solicitation_id
+            elif solicitation_id != document.solicitation_id:
                 mixed_solicitations = True
 
-            descriptor = self._resolve_descriptor(metadata)
-            if descriptor is None:
-                # Documento não suportado: ignora e segue com os demais
-                metrics.increment("document_extraction_errors")
-                continue
-
             try:
-                file_bytes = self._storage_gateway.download(metadata.s3_key)
+                file_bytes = self._storage_gateway.download(document.s3_key)
             except Exception as exc:  # pylint: disable=broad-except
                 metrics.increment("document_extraction_errors")
                 return Left(StorageError(str(exc)))
 
             try:
                 payload = self._extraction_gateway.extract(
-                    document_type=metadata.classification or "unknown",
-                    document_name=metadata.file_name or metadata.document_id,
-                    mimetype=metadata.mimetype,
+                    document=document,
                     file_bytes=file_bytes,
-                    descriptor=descriptor,
                 )
             except UnsupportedDocumentError as exc:
                 metrics.increment("document_extraction_errors")
                 return Left(exc)
-            except Exception as exc:  # pylint: disable=broad-except
+            except Exception as exc:
                 metrics.increment("document_extraction_errors")
                 return Left(ExtractionError(str(exc)))
 
+            # TODO: ajusta payload com base no tipo de dado extraido, isto é, adicionar um model, dto e entidade para cada tipo de documento extaido
             record = self._extraction_repository.upsert_extraction(
                 document_id=document_id,
-                document_type=metadata.classification or "unknown",
+                document_type=document.classification or "unknown",
                 payload=payload,
             )
             records.append(record)

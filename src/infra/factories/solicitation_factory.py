@@ -64,7 +64,7 @@ def create_classificar_documentos_usecase(
     document_repository = DocumentRepository(session)
     solicitation_repository = SolicitationRepository(session)
     return ClassificarDocumentosUseCase(
-        classificador_gateway=gateway,
+        ia_gateway=gateway,
         storage_gateway=storage,
         document_repository=document_repository,
         solicitation_repository=solicitation_repository,
