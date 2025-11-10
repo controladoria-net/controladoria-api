@@ -20,8 +20,8 @@ from src.infra.http.fastapi.router.legal_cases_router import (
 )
 from src.domain.core import metrics
 from src.infra.http.fastapi.router.session_router import router as session_router
-from src.infra.http.fastapi.router.solicitacao_router import (
-    router as solicitacao_router,
+from src.infra.http.fastapi.router.solicitation_router import (
+    router as solicitation_router,
 )
 from src.infra.scheduler.jobs import run_update_legal_cases_job
 from src.infra.http.security.auth_decorator import AuthenticatedUser
@@ -81,7 +81,7 @@ def create_app() -> FastAPI:
 
     fastapi_app.include_router(session_router)
     fastapi_app.include_router(legal_cases_router)
-    fastapi_app.include_router(solicitacao_router)
+    fastapi_app.include_router(solicitation_router)
 
     @fastapi_app.get("/health", tags=["HealthCheck"])
     async def health_check():

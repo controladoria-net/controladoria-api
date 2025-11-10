@@ -10,7 +10,7 @@ from src.domain.core.errors import (
     IncompleteDataError,
     SolicitationNotFoundError,
 )
-from src.domain.gateway.eligibility_gateway import IEligibilityValidatorGateway
+from src.domain.gateway.ia_gateway import IAGateway
 from src.domain.repositories.document_extraction_repository import (
     DocumentExtractionRecord,
     IDocumentExtractionRepository,
@@ -30,7 +30,7 @@ from src.domain.core import metrics
 RulesProvider = Callable[[], str]
 
 
-class AvaliarElegibilidadeUseCase:
+class EvaluateEligibilityUseCase:
     """Evaluate solicitation eligibility based on extracted document data."""
 
     def __init__(
@@ -39,7 +39,7 @@ class AvaliarElegibilidadeUseCase:
         document_repository: IDocumentRepository,
         extraction_repository: IDocumentExtractionRepository,
         eligibility_repository: IEligibilityRepository,
-        validator_gateway: IEligibilityValidatorGateway,
+        validator_gateway: IAGateway,
         rules_provider: RulesProvider,
     ) -> None:
         self._solicitation_repository = solicitation_repository

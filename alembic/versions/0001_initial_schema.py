@@ -54,9 +54,6 @@ document_classification_enum = postgresql.ENUM(
     "CPF",
     "REAP",
     "OUTRO",
-    "ERRO_NA_CLASSIFICACAO",
-    "ERRO_DE_FORMATO",
-    "ERRO_NO_PROCESSAMENTO_DA_API",
     name="document_classification",
 )
 
@@ -240,15 +237,11 @@ def upgrade() -> None:
                 "CPF",
                 "REAP",
                 "OUTRO",
-                "ERRO_NA_CLASSIFICACAO",
-                "ERRO_DE_FORMATO",
-                "ERRO_NO_PROCESSAMENTO_DA_API",
                 name="document_classification",
                 create_type=False,
             ),
             nullable=True,
         ),
-        sa.Column("confianca", sa.Float(), nullable=True),
         sa.Column("status", sa.String(length=50), nullable=True),
         sa.Column(
             "created_at",

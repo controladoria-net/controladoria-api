@@ -27,7 +27,6 @@ class DocumentRepository(IDocumentRepository):
             s3_key=model.s3_key,
             mimetype=model.mimetype,
             classification=model.classificacao,
-            confidence=model.confianca,
             file_name=model.nome_arquivo,
             uploaded_at=model.uploaded_at,
         )
@@ -41,7 +40,6 @@ class DocumentRepository(IDocumentRepository):
             uploaded_by=metadata["uploaded_by"],
             uploaded_at=metadata.get("uploaded_at", datetime.now(timezone.utc)),
             classificacao=metadata.get("classificacao"),
-            confianca=metadata.get("confianca"),
             status=metadata.get("status"),
         )
         self._session.add(document)
@@ -59,12 +57,10 @@ class DocumentRepository(IDocumentRepository):
         self,
         document_id: str,
         classification: str,
-        confidence: float,
     ) -> None:
         model = self._session.get(DocumentModel, UUID(document_id))
         if model:
             model.classificacao = classification
-            model.confianca = confidence
             self._session.add(model)
             self._session.flush()
 

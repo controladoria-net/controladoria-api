@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
 from typing import Dict, List
 
-from src.domain.entities.documento import ResultadoClassificacao
+from src.domain.entities.document import DocumentClassification
+from src.domain.entities.solicitation import SolicitationDetails, SolicitationDocument
 from src.domain.repositories.document_repository import DocumentMetadata
 from src.domain.repositories.document_extraction_repository import (
     DocumentExtractionRecord,
@@ -12,12 +13,14 @@ from src.domain.repositories.solicitation_repository import (
 )
 from src.infra.http.dto.solicitacao_dto import (
     ClassificationGroupDTO,
+    DocumentDTO,
     ClassificationResponseDTO,
     ClassificationResultDTO,
     EligibilityResponseDTO,
     ExtractionItemDTO,
     ExtractionResponseDTO,
     SolicitationDashboardDTO,
+    SolicitacaoDTO,
 )
 
 
@@ -27,7 +30,7 @@ class SolicitacaoMapper:
     @staticmethod
     def classification_response(
         solicitation_id: str,
-        grouped: Dict[str, List[ResultadoClassificacao]],
+        grouped: Dict[str, List[DocumentClassification]],
         documents: Dict[str, DocumentMetadata],
     ) -> ClassificationResponseDTO:
         groups: List[ClassificationGroupDTO] = []
@@ -85,4 +88,32 @@ class SolicitacaoMapper:
             avg_processing_time_days=float(data.get("avg_processing_time_days", 0.0)),
             approval_rate=float(data.get("approval_rate", 0.0)),
             most_missing_documents=data.get("most_missing_documents", []),
+        )
+
+    @staticmethod
+    def solicitation_to_dto(details: SolicitationDetails) -> SolicitacaoDTO:
+        documents = [
+            SolicitacaoMapper._document_to_dto(doc) for doc in details.documents
+        ]
+        return SolicitacaoDTO(
+            id=details.id,
+            pescador=details.pescador,
+            status=details.status,
+            documents=documents,
+            analysis=details.analysis,
+            createdAt=details.created_at,
+            updatedAt=details.updated_at,
+            lawyerNotes=details.lawyer_notes,
+            priority=details.priority,
+        )
+
+    @staticmethod
+    def _document_to_dto(document: SolicitationDocument) -> DocumentDTO:
+        return DocumentDTO(
+            id=document.id,
+            fileName=document.file_name,
+            mimetype=document.mimetype,
+            classification=document.classification,
+            confidence=document.confidence,
+            uploadedAt=document.uploaded_at,
         )
