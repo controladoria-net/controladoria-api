@@ -27,7 +27,6 @@ from src.infra.external.prompts.prompt_classificador import PROMPT_MESTRE
 
 
 class GeminiIAGateway(IAGateway):
-
     def __init__(self):
         self.model_name: str = "gemini-2.0-flash"
         self.generation_config: dict | None = {"response_mime_type": "application/json"}

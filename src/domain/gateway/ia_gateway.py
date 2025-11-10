@@ -13,7 +13,6 @@ from src.domain.repositories.solicitation_repository import SolicitationRecord
 
 
 class IAGateway(ABC):
-
     @abstractmethod
     def classify(self, document: ClassificationDocument) -> DocumentClassification:
         pass

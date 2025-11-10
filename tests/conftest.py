@@ -4,6 +4,9 @@ from typing import Any
 
 import requests
 
+from src.domain.entities.auth import AuthenticatedUserEntity
+from src.infra.http.security.auth_decorator import AuthenticatedUser
+
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 if ROOT_DIR not in sys.path:
@@ -26,9 +29,6 @@ def _dummy_get(*args: Any, **kwargs: Any) -> _DummyResponse:
 
 
 requests.get = _dummy_get
-
-from src.domain.entities.auth import AuthenticatedUserEntity
-from src.infra.http.security.auth_decorator import AuthenticatedUser
 
 
 def _default_authenticated_user() -> AuthenticatedUserEntity:

@@ -28,9 +28,7 @@ async def validation_exception_handler(
     )
 
 
-async def generic_exception_handler(
-    request: Request, exc: Exception
-) -> JSONResponse:  # pylint: disable=broad-exception-caught
+async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:  # pylint: disable=broad-exception-caught
     logger.error(
         "Erro interno em %s: %s - %s",
         request.url,

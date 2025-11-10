@@ -8,7 +8,9 @@ PATTERN = re.compile(r"^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$")
 
 def format_cnj_number(raw_number: str) -> str:
     if not re.match(r"^\d{20}$", raw_number):
-        raise ValueError(f"Input must be a string with exactly 20 digits, got: {raw_number!r}")
+        raise ValueError(
+            f"Input must be a string with exactly 20 digits, got: {raw_number!r}"
+        )
     # NNNNNNN (Número Sequencial do Processo)
     sequential_number = raw_number[0:7]
     # DD (Dígito Verificador)

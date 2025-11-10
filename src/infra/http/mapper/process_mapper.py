@@ -1,5 +1,4 @@
-from datetime import datetime
-from typing import Dict, List
+from typing import Dict
 
 from src.domain.entities.case import LegalCase, Movement
 from src.domain.repositories.legal_case_repository import PersistedLegalCase

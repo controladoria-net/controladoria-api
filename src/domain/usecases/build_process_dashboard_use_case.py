@@ -5,7 +5,6 @@ from typing import Optional
 from src.domain.core.either import Either, Left, Right
 from src.domain.core.errors import InvalidInputError
 from datetime import datetime
-from typing import Optional
 
 from src.domain.repositories.legal_case_repository import (
     ILegalCaseRepository,

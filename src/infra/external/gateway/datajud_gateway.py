@@ -17,7 +17,6 @@ logger = get_logger(__name__)
 
 
 class DataJudGateway(LegalCaseGateway):
-
     def __init__(self):
         self.api_key = DATAJUD_API_KEY
         self.base_url = DATAJUD_URL
