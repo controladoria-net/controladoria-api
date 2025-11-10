@@ -2,7 +2,10 @@ from dataclasses import dataclass
 from textwrap import dedent
 from string import Template
 
-from src.infra.external.prompts.constants import PROMPT_COMMON_ENV_VARS
+from src.infra.external.prompts.constants import (
+    DOCUMENT_METADATA_SCHEMA_REGISTRY,
+    PROMPT_COMMON_ENV_VARS,
+)
 
 
 @dataclass
@@ -11,7 +14,7 @@ class Prompt:
     description: str | None
     system_prompt: str | None
     prompt: str
-    response_schema: str
+    response_schema: dict[str, any]
     response_mime_type: str = "application/json"
 
     @classmethod
@@ -21,7 +24,9 @@ class Prompt:
             description=data.get("description"),
             system_prompt=data.get("system_prompt"),
             prompt=data["prompt"],
-            response_schema=data["response_schema"],
+            response_schema=DOCUMENT_METADATA_SCHEMA_REGISTRY.get(
+                data["response_schema"]
+            ),
             response_mime_type=data.get("response_mime_type", "application/json"),
         )
 

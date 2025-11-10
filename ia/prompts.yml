@@ -104,7 +104,7 @@ prompts:
       - Indicação se o período aquisitivo do defeso está completo (True/False);
       - Outros vínculos e remunerações, se existirem;
       - Órgão emissor: normalmente “INSS”.
-    response_schema: CNISMetadataResponseDTO
+    response_schema: CNISMetadataResponseShema
 
   - key: CERTIFICADO_DE_REGULARIDADE
     description: Prompt para extração de dados do Certificado de Regularidade do RGP.

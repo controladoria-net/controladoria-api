@@ -1,16 +1,15 @@
-from pydantic import BaseModel
 from src.domain.entities.document import DocumentClassification
 from src.infra.external.dto.document_extraction_dto import (
     BiometriaMetadataResponseDTO,
     CAEPFMetadataResponseDTO,
     ComprovanteResidenciaMetadataResponseDTO,
-    CNISMetadataResponseDTO,
     OutroMetadataResponseDTO,
     RGPMetadataResponseDTO,
     TermoRepresentacaoMetadataResponseDTO,
     GPSMetadataResponseDTO,
     RegistrationDocumentResponseDTO,
     REAPMetadataResponseDTO,
+    CNISMetadataResponseShema,
 )
 
 
@@ -36,8 +35,8 @@ PROMPT_COMMON_ENV_VARS = {
     ),
 }
 
-DOCUMENT_METADATA_SCHEMA_REGISTRY: dict[DocumentClassification, BaseModel] = {
-    DocumentClassification.CNIS: CNISMetadataResponseDTO,
+DOCUMENT_METADATA_SCHEMA_REGISTRY: dict[DocumentClassification, any] = {
+    DocumentClassification.CNIS: CNISMetadataResponseShema,
     DocumentClassification.CERTIFICADO_DE_REGULARIDADE: RGPMetadataResponseDTO,
     DocumentClassification.CAEPF: CAEPFMetadataResponseDTO,
     DocumentClassification.DECLARACAO_DE_RESIDENCIA: ComprovanteResidenciaMetadataResponseDTO,

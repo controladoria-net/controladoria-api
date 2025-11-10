@@ -1,6 +1,13 @@
 from pydantic import BaseModel, Field
 from typing import Optional, Annotated, Literal
 from datetime import date
+from google.genai import Schema
+
+# TODO: Converter todos os DTOs desse arquivo para Types.Schema do Gemini
+
+CNISMetadataResponseShema = {
+    "ano": Schema(type="integer", description="Ano do vínculo empregatício"),
+}
 
 
 class _Endereco(BaseModel):
