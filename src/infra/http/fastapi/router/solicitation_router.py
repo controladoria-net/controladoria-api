@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from src.domain.core.errors import (
     ClassificationError,
     DocumentNotFoundError,
+    DomainError,
     EligibilityComputationError,
     IncompleteDataError,
     InvalidInputError,
@@ -18,27 +19,26 @@ from src.domain.core.errors import (
     UploadError,
 )
 from src.domain.entities.auth import AuthenticatedUserEntity
-from src.domain.entities.documento import DocumentoProcessar
-from src.domain.usecases.avaliar_elegibilidade_use_case import (
-    AvaliarElegibilidadeUseCase,
+
+from src.domain.entities.document import ClassificationDocument
+from src.domain.usecases.evaluate_eligibility_use_case import (
+    EvaluateEligibilityUseCase,
 )
 from src.domain.usecases.build_solicitation_dashboard_use_case import (
     BuildSolicitationDashboardUseCase,
 )
-from src.domain.usecases.classificar_documentos_use_case import (
+from src.domain.usecases.document_classification_use_case import (
     ClassificarDocumentosUseCase,
 )
-from src.domain.usecases.extrair_dados_use_case import ExtrairDadosUseCase
+from src.domain.usecases.extract_data_use_case import ExtrairDadosUseCase
 from src.infra.database.session import get_session
 from src.infra.factories.classificador_factory import (
     create_classificar_documentos_usecase,
 )
-from src.infra.database.repositories.solicitation_repository import (
-    SolicitationRepository,
-)
-from src.infra.factories.solicitacao_factories import (
+from src.infra.factories.solicitation_factory import (
     create_avaliar_elegibilidade_use_case,
     create_extrair_dados_use_case,
+    create_get_solicitacao_by_id_use_case,
     create_solicitation_dashboard_use_case,
 )
 from src.infra.http.dto.general_response_dto import GeneralResponseDTO
@@ -67,19 +67,16 @@ async def classificar_documentos(
     use_case: ClassificarDocumentosUseCase = create_classificar_documentos_usecase(
         session
     )
-    # Cria nova solicitação (status pendente/prioridade baixa por padrão)
-    solicitation_repo = SolicitationRepository(session)
-    created = solicitation_repo.create()
-    solicitation_id = created.solicitation_id
-    documentos = [
-        DocumentoProcessar(
-            file_object=upload.file,
-            nome_arquivo_original=upload.filename,
-            mimetype=upload.content_type,
+    documents = [
+        ClassificationDocument(
+            data=await _file.read(),
+            name=_file.filename,
+            mimetype=_file.content_type,
         )
-        for upload in files
+        for _file in files
     ]
-    result = use_case.execute(solicitation_id, current_user.id, documentos)
+    result = use_case.execute(current_user.id, documents)
+
     if result.is_left():
         error = result.get_left()
         if isinstance(error, InvalidInputError):
@@ -94,12 +91,8 @@ async def classificar_documentos(
         return JSONResponse(status_code=status_code, content=response.model_dump())
 
     classification_result = result.get_right()
-    dto = SolicitacaoMapper.classification_response(
-        solicitation_id,
-        classification_result.groups,
-        classification_result.documents,
-    )
-    return GeneralResponseDTO(data=dto.model_dump())
+
+    return GeneralResponseDTO(data=classification_result)
 
 
 @router.post("/extracao", response_model=GeneralResponseDTO)
@@ -161,7 +154,7 @@ async def avaliar_elegibilidade(
     session=Depends(get_session),
     _: AuthenticatedUserEntity = AuthenticatedUser,
 ):
-    use_case: AvaliarElegibilidadeUseCase = create_avaliar_elegibilidade_use_case(
+    use_case: EvaluateEligibilityUseCase = create_avaliar_elegibilidade_use_case(
         session
     )
     result = use_case.execute(payload.solicitation_id)
@@ -215,4 +208,44 @@ def dashboard_solicitacoes(
 
     aggregation = result.get_right()
     dto = SolicitacaoMapper.dashboard_to_dto(aggregation)
+    return GeneralResponseDTO(data=dto.model_dump())
+
+
+@router.get(
+    "/{solicitacao_id}",
+    response_model=GeneralResponseDTO,
+    summary="Recupera os detalhes de uma solicitação",
+)
+async def get_solicitacao_by_id(
+    solicitacao_id: str,
+    session=Depends(get_session),
+    _: AuthenticatedUserEntity = AuthenticatedUser,
+):
+    use_case = create_get_solicitacao_by_id_use_case(session)
+    try:
+        result = use_case.execute(solicitacao_id)
+    except Exception:  # pylint: disable=broad-except
+        response = GeneralResponseDTO(
+            errors=[{"message": "Erro interno ao recuperar a solicitação."}]
+        )
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content=response.model_dump(),
+        )
+
+    if result.is_left():
+        error = result.get_left()
+        if isinstance(error, InvalidInputError):
+            status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+        elif isinstance(error, SolicitationNotFoundError):
+            status_code = status.HTTP_404_NOT_FOUND
+        elif isinstance(error, DomainError):
+            status_code = status.HTTP_502_BAD_GATEWAY
+        else:
+            status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        response = GeneralResponseDTO(errors=[{"message": error.message}])
+        return JSONResponse(status_code=status_code, content=response.model_dump())
+
+    details = result.get_right()
+    dto = SolicitacaoMapper.solicitation_to_dto(details)
     return GeneralResponseDTO(data=dto.model_dump())

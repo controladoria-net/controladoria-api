@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from logging.config import fileConfig
-from os import environ
 from typing import Any, Dict
 
 from alembic import context

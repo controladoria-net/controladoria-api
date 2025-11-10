@@ -4,6 +4,31 @@ from typing import Dict, List, Optional
 from pydantic import BaseModel
 
 
+class DocumentDTO(BaseModel):
+    """Document metadata for a solicitation."""
+
+    id: str
+    fileName: Optional[str] = None
+    mimetype: str
+    classification: Optional[str] = None
+    confidence: Optional[float] = None
+    uploadedAt: Optional[datetime] = None
+
+
+class SolicitacaoDTO(BaseModel):
+    """DTO representing a solicitation detail response."""
+
+    id: str
+    pescador: Optional[Dict[str, object]] = None
+    status: str
+    documents: List[DocumentDTO]
+    analysis: Optional[Dict[str, object]] = None
+    createdAt: datetime
+    updatedAt: datetime
+    lawyerNotes: Optional[str] = None
+    priority: str
+
+
 class ClassificationResultDTO(BaseModel):
     """Classification summary for a document."""
 

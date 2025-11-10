@@ -23,7 +23,7 @@ def test_get_session_user_returns_authenticated_user_data():
             roles=["admin", "user"],
         )
 
-    app.dependency_overrides[AuthenticatedUser] = override_authenticated_user
+    app.dependency_overrides[AuthenticatedUser.dependency] = override_authenticated_user
 
     response = client.get("/session/user")
 
@@ -49,7 +49,7 @@ def test_get_session_user_without_credentials_returns_unauthorized_response():
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Não autorizado"
         )
 
-    app.dependency_overrides[AuthenticatedUser] = override_authenticated_user
+    app.dependency_overrides[AuthenticatedUser.dependency] = override_authenticated_user
 
     response = client.get("/session/user")
 

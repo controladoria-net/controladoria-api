@@ -96,6 +96,7 @@ flowchart LR
         SR[Session Router]
         PR[Processos Router]
         SoR[Solicitação Router]
+        SoListR[Solicitações Router]
         Cron[Cron Scheduler\n(APScheduler)]
     end
 
@@ -107,6 +108,7 @@ flowchart LR
         Extract[ExtrairDados]
         Eligibility[AvaliarElegibilidade]
         SolicDash[BuildSolicitationDashboard]
+        SolicDetail[GetSolicitacaoById]
     end
 
     subgraph Infra
@@ -133,6 +135,8 @@ flowchart LR
     Extract --> Repos
     SoR --> Eligibility --> Repos
     SoR --> SolicDash --> Repos
+    Client --> SoListR
+    SoListR --> SolicDetail --> Repos
 
     SR --> Keycloak
 ```
@@ -142,5 +146,5 @@ flowchart LR
 - **Processos Flow**: `/processos/consultar/{id}` validates the CNJ number, calls `GetLegalCaseByIdUseCase`, persists new cases via repositories, and relies on `FindLegalCaseUseCase` to query DataJud.
 - **Cron Job**: The APScheduler job executes `UpdateStaleLegalCasesUseCase` every three days at 00:00 (America/Sao_Paulo), refreshing records whose `last_synced_at` is null or older than three days, persisting only diffs.
 - **Solicitação Workflow**: The `/solicitacao` endpoints share repositories. Classification uploads to S3, extraction consumes stored file metadata, and eligibility leverages extracted payloads plus solicitation data.
+- **Solicitação Detalhe**: O endpoint `GET /solicitacoes/{id}` usa o use case `GetSolicitacaoById` para agregar documentos, análise e resultado de elegibilidade em uma única resposta.
 - **Dashboards**: Both process and solicitation dashboards aggregate using SQLAlchemy functions (e.g., monthly buckets with `date_trunc`) before mapping to DTO responses.
-

@@ -10,8 +10,8 @@ from src.domain.core.errors import (
     StorageError,
     UnsupportedDocumentError,
 )
+from src.domain.gateway.ia_gateway import IAGateway
 from src.domain.gateway.object_storage_gateway import IObjectStorageGateway
-from src.domain.gateway.document_extraction_gateway import IDocumentExtractionGateway
 from src.domain.repositories.document_extraction_repository import (
     DocumentExtractionRecord,
     IDocumentExtractionRepository,
@@ -44,7 +44,7 @@ class ExtrairDadosUseCase:
         document_repository: IDocumentRepository,
         extraction_repository: IDocumentExtractionRepository,
         storage_gateway: IObjectStorageGateway,
-        extraction_gateway: IDocumentExtractionGateway,
+        extraction_gateway: IAGateway,
         descriptor_resolver: PromptResolver,
     ) -> None:
         self._document_repository = document_repository

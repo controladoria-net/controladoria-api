@@ -7,7 +7,6 @@ from sqlalchemy import (
     JSON,
     DateTime,
     Enum,
-    Float,
     ForeignKey,
     Integer,
     String,
@@ -17,7 +16,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.domain.entities.categorias import CategoriaDocumento
+from src.domain.entities.document import DocumentClassification
 from src.infra.database.base import Base
 
 
@@ -181,14 +180,12 @@ class DocumentModel(Base, TimestampMixin):
     )
     classificacao: Mapped[Optional[str]] = mapped_column(
         Enum(
-            *[member.value for member in CategoriaDocumento],
+            *[member.value for member in DocumentClassification],
             name="document_classification",
         ),
         nullable=True,
     )
-    confianca: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     status: Mapped[Optional[str]] = mapped_column(String(50))
-
     solicitacao: Mapped[SolicitationModel] = relationship(back_populates="documentos")
     extracao: Mapped[Optional["DocumentExtractionModel"]] = relationship(
         back_populates="documento",

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from collections import defaultdict
+from dataclasses import dataclass
 import io
-from typing import Dict, List, Sequence
+from typing import List, Sequence
 from uuid import uuid4
 
 from src.domain.core.either import Either, Left, Right
@@ -13,9 +13,8 @@ from src.domain.core.errors import (
     StorageError,
     UploadError,
 )
-from src.domain.entities.categorias import CategoriaDocumento
-from src.domain.entities.documento import DocumentoProcessar, ResultadoClassificacao
-from src.domain.gateway.classificador_gateway import IClassificadorGateway
+from src.domain.entities.document import ClassificationDocument, DocumentClassification
+from src.domain.gateway.ia_gateway import IAGateway
 from src.domain.gateway.object_storage_gateway import IObjectStorageGateway
 from src.domain.repositories.document_repository import (
     DocumentMetadata,
@@ -34,16 +33,16 @@ ALLOWED_CONTENT_TYPES: Sequence[str] = (
 )
 
 
-class ClassificationResult:
-    """Result bundle containing grouped classification outputs and metadata."""
+@dataclass
+class ClassificationResultDocument:
+    document_id: str
+    classification: DocumentClassification
 
-    def __init__(
-        self,
-        groups: Dict[str, List[ResultadoClassificacao]],
-        documents: Dict[str, DocumentMetadata],
-    ):
-        self.groups = groups
-        self.documents = documents
+
+@dataclass
+class ClassificationResult:
+    solicitation_id: str
+    documents: List[ClassificationResultDocument]
 
 
 class ClassificarDocumentosUseCase:
@@ -51,7 +50,7 @@ class ClassificarDocumentosUseCase:
 
     def __init__(
         self,
-        classificador_gateway: IClassificadorGateway,
+        classificador_gateway: IAGateway,
         storage_gateway: IObjectStorageGateway,
         document_repository: IDocumentRepository,
         solicitation_repository: ISolicitationRepository,
@@ -64,120 +63,106 @@ class ClassificarDocumentosUseCase:
 
     def execute(
         self,
-        solicitation_id: str,
         user_id: str,
-        documentos: List[DocumentoProcessar],
+        documents: List[ClassificationDocument],
     ) -> Either[Exception, ClassificationResult]:
-        if not documentos:
+        if not documents:
             return Left(InvalidInputError("Nenhum documento fornecido."))
-        if len(documentos) > MAX_DOCUMENTS_PER_REQUEST:
+        if len(documents) > MAX_DOCUMENTS_PER_REQUEST:
             metrics.increment("document_upload_errors")
             return Left(
                 InvalidInputError("Quantidade máxima de 15 documentos excedida.")
             )
 
+        created = self._solicitation_repository.create()
+        solicitation_id = created.solicitation_id
+
         try:
             self._solicitation_repository.ensure_exists(solicitation_id)
-        except Exception as exc:  # pylint: disable=broad-except
+        except Exception as exc:
             return Left(exc)
 
-        grouped: Dict[str, List[ResultadoClassificacao]] = defaultdict(list)
-        document_map: Dict[str, DocumentMetadata] = {}
+        result = ClassificationResult(
+            solicitation_id=solicitation_id,
+            documents=[],
+        )
 
-        for documento in documentos:
-            if documento.mimetype not in ALLOWED_CONTENT_TYPES:
+        for document in documents:
+            if document.mimetype not in ALLOWED_CONTENT_TYPES:
                 metrics.increment("document_upload_errors")
                 return Left(
-                    InvalidInputError(
-                        f"Formato não suportado para '{documento.nome_arquivo_original}'."
-                    )
+                    InvalidInputError(f"Formato não suportado para '{document.name}'.")
                 )
 
-            upload_key = self._build_storage_key(
-                solicitation_id, documento.nome_arquivo_original
-            )
-            # Capture bytes once to avoid relying on the original UploadFile stream lifecycle
+            upload_key = self._build_storage_key(solicitation_id, document.name)
+            metadata: DocumentMetadata = None
             try:
-                documento.file_object.seek(0)
-                file_bytes = documento.file_object.read()
-            except Exception as exc:  # pylint: disable=broad-except
-                metrics.increment("document_upload_errors")
-                return Left(UploadError(str(exc)))
-
-            try:
-                upload_stream = io.BytesIO(file_bytes)
+                upload_stream = io.BytesIO(document.data)
                 self._storage_gateway.upload(
-                    upload_key, upload_stream, documento.mimetype
+                    upload_key, upload_stream, document.mimetype
                 )
             except Exception as exc:  # pylint: disable=broad-except
                 metrics.increment("document_upload_errors")
                 return Left(UploadError(str(exc)))
 
             try:
+                # TODO: verificar se o documento já foi classificado antes
                 metadata = self._document_repository.create_document(
                     {
                         "solicitacao_id": solicitation_id,
-                        "nome_arquivo": documento.nome_arquivo_original,
-                        "mimetype": documento.mimetype,
+                        "nome_arquivo": document.name,
+                        "mimetype": document.mimetype,
                         "s3_key": upload_key,
                         "uploaded_by": user_id,
                     }
                 )
-                document_map[documento.nome_arquivo_original] = metadata
-            except Exception as exc:  # pylint: disable=broad-except
+            except Exception as exc:
                 metrics.increment("document_storage_errors")
                 return Left(StorageError(str(exc)))
 
             try:
-                classify_stream = io.BytesIO(file_bytes)
-                documento_temp = DocumentoProcessar(
-                    file_object=classify_stream,
-                    nome_arquivo_original=documento.nome_arquivo_original,
-                    mimetype=documento.mimetype,
+                gatewayClassificationResult = self._classificador_gateway.classificar(
+                    document
                 )
-                resultado = self._classificador_gateway.classificar(documento_temp)
-            except Exception as exc:  # pylint: disable=broad-except
-                resultado = ResultadoClassificacao(
-                    classificacao=CategoriaDocumento.ERRO_NA_CLASSIFICACAO,
-                    confianca=0.0,
-                    arquivo=documento.nome_arquivo_original,
-                    mimetype=documento.mimetype,
-                )
-                grouped[resultado.classificacao.value].append(resultado)
+            except Exception as exc:
+                gatewayClassificationResult = DocumentClassification.OUTRO
                 metrics.increment("document_classification_errors")
-                # Log root cause to help troubleshooting external IA issues
                 self._logger.warning(
                     "Falha ao classificar '%s': %s",
-                    documento.nome_arquivo_original,
+                    document.name,
                     exc,
                     exc_info=True,
                 )
                 continue
 
-            categoria = resultado.classificacao.value
-            grouped[categoria].append(resultado)
+            classification = gatewayClassificationResult.value
+            result.documents.append(
+                ClassificationResultDocument(
+                    document_id=metadata.document_id,
+                    classification=classification,
+                )
+            )
 
             try:
                 self._document_repository.update_classification(
                     metadata.document_id,
-                    categoria,
-                    resultado.confianca,
+                    classification,
                 )
             except Exception:
-                # Log-friendly but do not interrupt flow
                 pass
 
-        if not grouped:
+        if not result.documents:
             metrics.increment("document_classification_errors")
+
             return Left(
                 ClassificationError(
                     "Não foi possível classificar os documentos enviados."
                 )
             )
 
-        classified_count = sum(len(items) for items in grouped.values())
+        classified_count = len(result.documents)
         metrics.increment("documents_classified", classified_count)
-        return Right(ClassificationResult(groups=grouped, documents=document_map))
+        return Right(result)
 
     @staticmethod
     def _build_storage_key(solicitation_id: str, filename: str) -> str:
