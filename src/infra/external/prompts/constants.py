@@ -1,14 +1,14 @@
 from src.domain.entities.document import DocumentClassification
 from src.infra.external.dto.document_extraction_dto import (
-    BiometriaMetadataResponseDTO,
-    CAEPFMetadataResponseDTO,
-    ComprovanteResidenciaMetadataResponseDTO,
-    OutroMetadataResponseDTO,
-    RGPMetadataResponseDTO,
-    TermoRepresentacaoMetadataResponseDTO,
-    GPSMetadataResponseDTO,
-    RegistrationDocumentResponseDTO,
-    REAPMetadataResponseDTO,
+    BiometriaMetadataResponseSchema,
+    CAEPFMetadataResponseSchema,
+    ComprovanteResidenciaMetadataResponseSchema,
+    OutroMetadataResponseSchema,
+    RGPMetadataResponseSchema,
+    TermoRepresentacaoMetadataResponseSchema,
+    GPSMetadataResponseSchema,
+    RegistrationDocumentResponseSchema,
+    REAPMetadataResponseSchema,
     CNISMetadataResponseShema,
 )
 
@@ -35,15 +35,19 @@ PROMPT_COMMON_ENV_VARS = {
     ),
 }
 
-DOCUMENT_METADATA_SCHEMA_REGISTRY: dict[DocumentClassification, any] = {
-    DocumentClassification.CNIS: CNISMetadataResponseShema,
-    DocumentClassification.CERTIFICADO_DE_REGULARIDADE: RGPMetadataResponseDTO,
-    DocumentClassification.CAEPF: CAEPFMetadataResponseDTO,
-    DocumentClassification.DECLARACAO_DE_RESIDENCIA: ComprovanteResidenciaMetadataResponseDTO,
-    DocumentClassification.TERMO_DE_REPRESENTACAO: TermoRepresentacaoMetadataResponseDTO,
-    DocumentClassification.GPS_E_COMPROVANTE: GPSMetadataResponseDTO,
-    DocumentClassification.BIOMETRIA: BiometriaMetadataResponseDTO,
-    DocumentClassification.DOCUMENTO_IDENTIDADE: RegistrationDocumentResponseDTO,
-    DocumentClassification.REAP: REAPMetadataResponseDTO,
-    DocumentClassification.OUTRO: OutroMetadataResponseDTO,
+# Registry mapeando nomes de schemas (como aparecem no YAML) para objetos Schema
+DOCUMENT_METADATA_SCHEMA_REGISTRY: dict[str, object] = {
+    # CNIS já aponta diretamente para a variável com o mesmo nome no YAML
+    "CNISMetadataResponseShema": CNISMetadataResponseShema,
+    # Demais chaves no YAML ainda usam sufixo DTO; mapeamos para os Schemas correspondentes
+    "RGPMetadataResponseDTO": RGPMetadataResponseSchema,
+    "CAEPFMetadataResponseDTO": CAEPFMetadataResponseSchema,
+    "ComprovanteResidenciaMetadataResponseDTO": ComprovanteResidenciaMetadataResponseSchema,
+    "TermoRepresentacaoMetadataResponseDTO": TermoRepresentacaoMetadataResponseSchema,
+    "GPSMetadataResponseDTO": GPSMetadataResponseSchema,
+    "BiometriaMetadataResponseDTO": BiometriaMetadataResponseSchema,
+    "RegistrationDocumentResponseDTO": RegistrationDocumentResponseSchema,
+    "REAPMetadataResponseDTO": REAPMetadataResponseSchema,
+    # Fallback para documentos não classificados
+    "OutroMetadataResponseDTO": OutroMetadataResponseSchema,
 }

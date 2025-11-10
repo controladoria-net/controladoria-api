@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from textwrap import dedent
 from string import Template
+from google.genai.types import Schema
 
 from src.infra.external.prompts.constants import (
     DOCUMENT_METADATA_SCHEMA_REGISTRY,
@@ -14,19 +15,22 @@ class Prompt:
     description: str | None
     system_prompt: str | None
     prompt: str
-    response_schema: dict[str, any]
+    response_schema: Schema
     response_mime_type: str = "application/json"
 
     @classmethod
     def from_dict(cls, data: dict) -> "Prompt":
+        schema = DOCUMENT_METADATA_SCHEMA_REGISTRY.get(data["response_schema"])  # type: ignore[index]
+        if not schema:
+            raise ValueError(
+                f"Schema não encontrado para a chave: {data.get('response_schema')}"
+            )
         return cls(
             key=data["key"],
             description=data.get("description"),
             system_prompt=data.get("system_prompt"),
             prompt=data["prompt"],
-            response_schema=DOCUMENT_METADATA_SCHEMA_REGISTRY.get(
-                data["response_schema"]
-            ),
+            response_schema=schema,
             response_mime_type=data.get("response_mime_type", "application/json"),
         )
 
