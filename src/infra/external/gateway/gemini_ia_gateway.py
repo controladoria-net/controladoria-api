@@ -36,15 +36,6 @@ class GeminiIAGateway(IAGateway):
 
     def classify(self, document: ClassificationDocument) -> DocumentClassification:
         try:
-            # if document.mimetype == "application/pdf":
-            #     reader = PdfReader(BytesIO(document.data))
-            #     text = " ".join(page.extract_text() or "" for page in reader.pages)
-            #     file_part = Part.from_text(text=text)
-            # else:
-            #     file_part = Part.from_bytes(
-            #         data=document.data, mime_type=document.mimetype
-            #     )
-
             file_part = Part.from_bytes(data=document.data, mime_type=document.mimetype)
 
             response = self.client.models.generate_content(
@@ -108,33 +99,6 @@ class GeminiIAGateway(IAGateway):
             )
 
             return result.parsed
-
-            # part = (
-            #     Part.from_uri(file_uri=file_uri, mime_type=mimetype)
-            #     if file_uri
-            #     else upload
-            # )
-
-            # response = self._client.models.generate_content(
-            #     model=self._model_name,
-            #     contents=[
-            #         {
-            #             "role": "user",
-            #             "parts": [
-            #                 {"text": descriptor_text},
-            #                 part,
-            #             ],
-            #         }
-            #     ],
-            #     config={"response_mime_type": "application/json"},
-            # )
-
-            # json_payload = self._extract_json(response)
-            # if not isinstance(json_payload, dict):
-            #     raise ValueError(
-            #         "Resposta do modelo não está em formato JSON de objeto."
-            #     )
-            # return json_payload
         except Exception as exc:
             # TODO: remover raise e retornar um Left do either
             raise RuntimeError(
