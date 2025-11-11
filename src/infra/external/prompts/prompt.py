@@ -1,12 +1,10 @@
 from dataclasses import dataclass
 from textwrap import dedent
 from string import Template
-from google.genai.types import Schema
+from pydantic import BaseModel
 
-from src.infra.external.prompts.constants import (
-    DOCUMENT_METADATA_SCHEMA_REGISTRY,
-    PROMPT_COMMON_ENV_VARS,
-)
+import src.infra.external.dto.gemini_response_dto as ResponseSchema
+from src.infra.external.prompts.constants import PROMPT_COMMON_ENV_VARS
 
 
 @dataclass
@@ -15,16 +13,15 @@ class Prompt:
     description: str | None
     system_prompt: str | None
     prompt: str
-    response_schema: Schema
+    response_schema: BaseModel
     response_mime_type: str = "application/json"
 
     @classmethod
     def from_dict(cls, data: dict) -> "Prompt":
-        schema = DOCUMENT_METADATA_SCHEMA_REGISTRY.get(data["response_schema"])  # type: ignore[index]
-        if not schema:
-            raise ValueError(
-                f"Schema não encontrado para a chave: {data.get('response_schema')}"
-            )
+        response_schema_name = data.get("response_schema")
+        schema = getattr(
+            ResponseSchema, response_schema_name, ResponseSchema.OtherResponseDTO
+        )
         return cls(
             key=data["key"],
             description=data.get("description"),

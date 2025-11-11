@@ -23,41 +23,43 @@ from src.domain.repositories.document_extraction_repository import (
 )
 from src.domain.repositories.solicitation_repository import SolicitationRecord
 from src.infra.external.prompts.prompt import Prompt
-from src.infra.external.prompts.prompt_classificador import PROMPT_MESTRE
 
 
 class GeminiIAGateway(IAGateway):
     def __init__(self):
-        self.model_name: str = "gemini-2.0-flash"
-        self.generation_config: dict | None = {"response_mime_type": "application/json"}
+        self._model_name: str = "gemini-2.0-flash"
         self._logger = get_logger(__name__)
-        self.client = get_gemini_client()
+        self._client = get_gemini_client()
         self._prompts = load_prompts_from_yaml()
 
     def classify(self, document: ClassificationDocument) -> DocumentClassification:
         try:
-            file_part = Part.from_bytes(data=document.data, mime_type=document.mimetype)
-
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=[PROMPT_MESTRE, file_part],
-                config=self.generation_config,
+            descriptor = self._prompts.get("DOCUMENT_CLASSIFIER")
+            content = [
+                {
+                    "role": "user",
+                    "parts": [
+                        {"text": descriptor.prompt},
+                        Part.from_bytes(
+                            data=document.data, mime_type=document.mimetype
+                        ),
+                    ],
+                }
+            ]
+            result = self._client.models.generate_content(
+                model=self._model_name,
+                contents=content,
+                config=GenerateContentConfig(
+                    response_mime_type=descriptor.response_mime_type,
+                    response_schema=descriptor.response_schema,
+                    system_instruction=descriptor.system_prompt,
+                    temperature=0.2,
+                    thinking_config=ThinkingConfig(thinking_budget=0),
+                ),
             )
+            classification = result.parsed.classification
 
-            text = getattr(response, "text", None)
-
-            try:
-                response_json = json.loads(text)
-            except json.JSONDecodeError:
-                s, e = text.find("{"), text.rfind("}")
-                if s != -1 and e != -1 and e > s:
-                    response_json = json.loads(text[s : e + 1])
-                else:
-                    raise
-
-            result = DocumentClassification[response_json["classification"]]
-            return result
-
+            return classification
         except (json.JSONDecodeError, ValidationError) as e:
             self._logger.warning(
                 "Resposta inválida do modelo (JSON/Schema): %s", e, exc_info=True

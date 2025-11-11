@@ -45,13 +45,11 @@ class ExtrairDadosUseCase:
         extraction_repository: IDocumentExtractionRepository,
         storage_gateway: IObjectStorageGateway,
         extraction_gateway: IAGateway,
-        descriptor_resolver: PromptResolver,
     ) -> None:
         self._document_repository = document_repository
         self._extraction_repository = extraction_repository
         self._storage_gateway = storage_gateway
         self._extraction_gateway = extraction_gateway
-        self._descriptor_resolver = descriptor_resolver
 
     def execute(self, document_ids: List[str]) -> Either[Exception, ExtractionResult]:
         if not document_ids:

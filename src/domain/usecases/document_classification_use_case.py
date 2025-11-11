@@ -121,9 +121,9 @@ class ClassificarDocumentosUseCase:
                 return Left(StorageError(str(exc)))
 
             try:
-                gatewayClassificationResult = self._ia_gateway.classify(document)
+                classification = self._ia_gateway.classify(document)
             except Exception as exc:
-                gatewayClassificationResult = DocumentClassification.OUTRO
+                classification = DocumentClassification.OUTRO
                 metrics.increment("document_classification_errors")
                 self._logger.warning(
                     "Falha ao classificar '%s': %s",
@@ -133,11 +133,10 @@ class ClassificarDocumentosUseCase:
                 )
                 continue
 
-            classification = gatewayClassificationResult.value
             result.documents.append(
                 ClassificationResultDocument(
                     document_id=metadata.document_id,
-                    classification=classification,
+                    classification=classification.value,
                 )
             )
 

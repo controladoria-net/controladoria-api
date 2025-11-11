@@ -1,20 +1,7 @@
 from src.domain.entities.document import DocumentClassification
-from src.infra.external.dto.document_extraction_dto import (
-    BiometriaMetadataResponseSchema,
-    CAEPFMetadataResponseSchema,
-    ComprovanteResidenciaMetadataResponseSchema,
-    OutroMetadataResponseSchema,
-    RGPMetadataResponseSchema,
-    TermoRepresentacaoMetadataResponseSchema,
-    GPSMetadataResponseSchema,
-    RegistrationDocumentResponseSchema,
-    REAPMetadataResponseSchema,
-    CNISMetadataResponseShema,
-)
-
 
 PROMPT_COMMON_ENV_VARS = {
-    "BASE_EXTRACTOR_SYSTEM_PROMPT": """
+    "BASE_SYSTEM_PROMPT": """
         ⚠️ Regras Gerais:
         - Responda apenas com JSON válido;
         - Se a informação não aparecer, não a inclua;
@@ -33,21 +20,4 @@ PROMPT_COMMON_ENV_VARS = {
         f"{idx}. {categoria.value}"
         for idx, categoria in enumerate(DocumentClassification, start=1)
     ),
-}
-
-# Registry mapeando nomes de schemas (como aparecem no YAML) para objetos Schema
-DOCUMENT_METADATA_SCHEMA_REGISTRY: dict[str, object] = {
-    # CNIS já aponta diretamente para a variável com o mesmo nome no YAML
-    "CNISMetadataResponseShema": CNISMetadataResponseShema,
-    # Demais chaves no YAML ainda usam sufixo DTO; mapeamos para os Schemas correspondentes
-    "RGPMetadataResponseDTO": RGPMetadataResponseSchema,
-    "CAEPFMetadataResponseDTO": CAEPFMetadataResponseSchema,
-    "ComprovanteResidenciaMetadataResponseDTO": ComprovanteResidenciaMetadataResponseSchema,
-    "TermoRepresentacaoMetadataResponseDTO": TermoRepresentacaoMetadataResponseSchema,
-    "GPSMetadataResponseDTO": GPSMetadataResponseSchema,
-    "BiometriaMetadataResponseDTO": BiometriaMetadataResponseSchema,
-    "RegistrationDocumentResponseDTO": RegistrationDocumentResponseSchema,
-    "REAPMetadataResponseDTO": REAPMetadataResponseSchema,
-    # Fallback para documentos não classificados
-    "OutroMetadataResponseDTO": OutroMetadataResponseSchema,
 }

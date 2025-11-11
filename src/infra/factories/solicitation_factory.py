@@ -1,7 +1,4 @@
 from __future__ import annotations
-
-from typing import Optional
-
 from sqlalchemy.orm import Session
 
 from src.domain.usecases.document_classification_use_case import (
@@ -29,23 +26,6 @@ from src.infra.database.repositories.solicitation_repository import (
 )
 from src.infra.external.gateway.gemini_ia_gateway import GeminiIAGateway
 from src.infra.external.gateway.s3_object_storage_gateway import S3ObjectStorageGateway
-from src.infra.external.prompts.loader import (
-    load_extraction_descriptors,
-    load_validator_rules,
-)
-
-_descriptor_map = load_extraction_descriptors()
-
-# Map categorias do classificador -> chaves de descritores disponíveis no extrator
-_EXTRACTION_SYNONYMS = {
-    "TERMO_DE_REPRESENTACAO": "TERMO_REPRESENTACAO",
-    "PROCURACAO": "TERMO_REPRESENTACAO",
-    "GPS_E_COMPROVANTE": "GPS",
-    "CERTIFICADO_DE_REGULARIDADE": "RGP",
-    "DECLARACAO_DE_RESIDENCIA": "COMPROVANTE_RESIDENCIA",
-    "CIN": "DOCUMENTO_IDENTIDADE_RG",
-    "CPF": "DOCUMENTO_IDENTIDADE",
-}
 
 
 def get_storage_gateway() -> S3ObjectStorageGateway:
@@ -71,12 +51,6 @@ def create_classificar_documentos_usecase(
     )
 
 
-def _descriptor_resolver(classification: str) -> Optional[str]:
-    key = (classification or "").upper()
-    mapped = _EXTRACTION_SYNONYMS.get(key, key)
-    return _descriptor_map.get(mapped)
-
-
 def create_extrair_dados_use_case(session: Session) -> ExtrairDadosUseCase:
     document_repository = DocumentRepository(session)
     extraction_repository = DocumentExtractionRepository(session)
@@ -87,7 +61,6 @@ def create_extrair_dados_use_case(session: Session) -> ExtrairDadosUseCase:
         extraction_repository=extraction_repository,
         storage_gateway=storage_gateway,
         extraction_gateway=extraction_gateway,
-        descriptor_resolver=_descriptor_resolver,
     )
 
 
@@ -99,14 +72,12 @@ def create_avaliar_elegibilidade_use_case(
     extraction_repository = DocumentExtractionRepository(session)
     eligibility_repository = EligibilityRepository(session)
     validator_gateway = GeminiIAGateway()
-    rules_provider = load_validator_rules
     return EvaluateEligibilityUseCase(
         solicitation_repository=solicitation_repository,
         document_repository=document_repository,
         extraction_repository=extraction_repository,
         eligibility_repository=eligibility_repository,
         validator_gateway=validator_gateway,
-        rules_provider=rules_provider,
     )
 
 
