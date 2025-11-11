@@ -36,7 +36,7 @@ class ExtractionResult:
         self.solicitation_id = solicitation_id
 
 
-class ExtrairDadosUseCase:
+class ExtractDataUseCase:
     """Runs document extraction using configured AI prompts."""
 
     def __init__(

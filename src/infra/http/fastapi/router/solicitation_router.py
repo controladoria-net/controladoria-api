@@ -28,9 +28,9 @@ from src.domain.usecases.build_solicitation_dashboard_use_case import (
     BuildSolicitationDashboardUseCase,
 )
 from src.domain.usecases.document_classification_use_case import (
-    ClassificarDocumentosUseCase,
+    DocumentClassificationUseCase,
 )
-from src.domain.usecases.extract_data_use_case import ExtrairDadosUseCase
+from src.domain.usecases.extract_data_use_case import ExtractDataUseCase
 from src.infra.database.session import get_session
 from src.infra.factories.solicitation_factory import (
     create_classificar_documentos_usecase,
@@ -65,7 +65,7 @@ async def classificar_documentos(
     session=Depends(get_session),
     current_user: AuthenticatedUserEntity = AuthenticatedUser,
 ):
-    use_case: ClassificarDocumentosUseCase = create_classificar_documentos_usecase(
+    use_case: DocumentClassificationUseCase = create_classificar_documentos_usecase(
         session
     )
     documents = [
@@ -122,7 +122,7 @@ async def extrair_dados(
             content=response.model_dump(),
         )
 
-    use_case: ExtrairDadosUseCase = create_extrair_dados_use_case(session)
+    use_case: ExtractDataUseCase = create_extrair_dados_use_case(session)
     result = use_case.execute(doc_ids)
     if result.is_left():
         error = result.get_left()

@@ -2,7 +2,7 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from src.domain.usecases.document_classification_use_case import (
-    ClassificarDocumentosUseCase,
+    DocumentClassificationUseCase,
 )
 from src.domain.usecases.evaluate_eligibility_use_case import (
     EvaluateEligibilityUseCase,
@@ -10,7 +10,7 @@ from src.domain.usecases.evaluate_eligibility_use_case import (
 from src.domain.usecases.build_solicitation_dashboard_use_case import (
     BuildSolicitationDashboardUseCase,
 )
-from src.domain.usecases.extract_data_use_case import ExtrairDadosUseCase
+from src.domain.usecases.extract_data_use_case import ExtractDataUseCase
 from src.domain.usecases.get_solicitacao_by_id_use_case import (
     GetSolicitacaoByIdUseCase,
 )
@@ -38,12 +38,12 @@ def get_storage_gateway() -> S3ObjectStorageGateway:
 
 def create_classificar_documentos_usecase(
     session: Session,
-) -> ClassificarDocumentosUseCase:
+) -> DocumentClassificationUseCase:
     gateway = GeminiIAGateway()
     storage = get_storage_gateway()
     document_repository = DocumentRepository(session)
     solicitation_repository = SolicitationRepository(session)
-    return ClassificarDocumentosUseCase(
+    return DocumentClassificationUseCase(
         ia_gateway=gateway,
         storage_gateway=storage,
         document_repository=document_repository,
@@ -51,12 +51,12 @@ def create_classificar_documentos_usecase(
     )
 
 
-def create_extrair_dados_use_case(session: Session) -> ExtrairDadosUseCase:
+def create_extrair_dados_use_case(session: Session) -> ExtractDataUseCase:
     document_repository = DocumentRepository(session)
     extraction_repository = DocumentExtractionRepository(session)
     storage_gateway = get_storage_gateway()
     extraction_gateway = GeminiIAGateway()
-    return ExtrairDadosUseCase(
+    return ExtractDataUseCase(
         document_repository=document_repository,
         extraction_repository=extraction_repository,
         storage_gateway=storage_gateway,

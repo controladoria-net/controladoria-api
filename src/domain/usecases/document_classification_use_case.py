@@ -45,7 +45,7 @@ class ClassificationResult:
     documents: List[ClassificationResultDocument]
 
 
-class ClassificarDocumentosUseCase:
+class DocumentClassificationUseCase:
     """Classifies documents, storing them in S3 and persisting metadata."""
 
     def __init__(
