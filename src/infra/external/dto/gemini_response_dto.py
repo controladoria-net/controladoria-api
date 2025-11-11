@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Annotated, Literal
+from typing import List, Optional, Annotated, Literal
 from datetime import date
 
 from src.domain.entities.document import DocumentClassification
@@ -614,4 +614,62 @@ class RegistrationDocumentResponseDTO(BaseModel):
 class DocumentClassificationResponseDTO(BaseModel):
     classification: Annotated[
         DocumentClassification, Field(..., description="Classificação do documento")
+    ]
+
+
+class PowerOfAttorneyGrant(BaseModel):
+    nome: Annotated[
+        Optional[str],
+        Field(..., description="Nome completo do outorgante da procuração"),
+    ]
+    cpf: Annotated[
+        Optional[str],
+        Field(
+            ...,
+            description="Número do CPF do outorgante no formato ###.###.###-##",
+        ),
+    ]
+    profissao: Annotated[
+        Optional[str], Field(..., description="Profissão do outorgante da procuração")
+    ]
+    estado_civil: Annotated[
+        Optional[str],
+        Field(..., description="Estado civil do outorgante da procuração"),
+    ]
+    endereco: Annotated[
+        _Endereco,
+        Field(..., description="Endereço completo do outorgante da procuração"),
+    ]
+    telefone: Annotated[
+        Optional[str],
+        Field(None, description="Número de telefone do outorgante da procuração"),
+    ]
+
+
+class PowerOfAttorneyGranted(BaseModel):
+    nome: Annotated[
+        Optional[str],
+        Field(..., description="Nome completo do outorgado da procuração"),
+    ]
+    cpf: Annotated[
+        Optional[str],
+        Field(
+            ...,
+            description="Número do CPF do outorgado no formato ###.###.###-##",
+        ),
+    ]
+    numero_oab: Annotated[
+        Optional[str],
+        Field(None, description="Número da OAB do outorgado da procuração"),
+    ]
+
+
+class PowerOfAttorneyResponseDTO(BaseModel):
+    ortogante: Annotated[
+        PowerOfAttorneyGrant,
+        Field(..., description="Dados do outorgante da procuração"),
+    ]
+    outorgados: Annotated[
+        List[Optional[PowerOfAttorneyGranted]],
+        Field(..., description="Dados do outorgado da procuração"),
     ]

@@ -15,7 +15,7 @@ from src.domain.usecases.get_solicitacao_by_id_use_case import (
     GetSolicitacaoByIdUseCase,
 )
 from src.domain.repositories.document_repository import IDocumentRepository
-from src.infra.config.settings import get_aws_settings
+from src.infra.config.settings import get_aws_settings, get_concurrency_settings
 from src.infra.database.repositories.document_extraction_repository import (
     DocumentExtractionRepository,
 )
@@ -43,11 +43,13 @@ def create_classificar_documentos_usecase(
     storage = get_storage_gateway()
     document_repository = DocumentRepository(session)
     solicitation_repository = SolicitationRepository(session)
+    concurrency = get_concurrency_settings()
     return DocumentClassificationUseCase(
         ia_gateway=gateway,
         storage_gateway=storage,
         document_repository=document_repository,
         solicitation_repository=solicitation_repository,
+        max_workers=concurrency.max_classify_workers,
     )
 
 
@@ -56,11 +58,13 @@ def create_extrair_dados_use_case(session: Session) -> ExtractDataUseCase:
     extraction_repository = DocumentExtractionRepository(session)
     storage_gateway = get_storage_gateway()
     extraction_gateway = GeminiIAGateway()
+    concurrency = get_concurrency_settings()
     return ExtractDataUseCase(
         document_repository=document_repository,
         extraction_repository=extraction_repository,
         storage_gateway=storage_gateway,
         extraction_gateway=extraction_gateway,
+        max_workers=concurrency.max_extract_workers,
     )
 
 

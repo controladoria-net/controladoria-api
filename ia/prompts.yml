@@ -20,9 +20,6 @@ prompts:
           CARACTERÍSTICAS: Cadastro de Atividade Econômica da Pessoa Física (CAEPF)
           que identifica um contribuinte como Segurado Especial. Documento emitido pela Receita Federal.
 
-      * DECLARACAO_DE_RESIDENCIA:
-          CARACTERÍSTICAS: Declaração de Residência (Pessoa Alfabetizada) para o Ministério da Pesca e Aquicultura (MPA).
-
       * CNIS:
           CARACTERÍSTICAS: Cadastro Nacional de Informações Sociais (INSS),
           contendo histórico previdenciário, vínculos, contribuições e categoria do segurado.
@@ -157,7 +154,7 @@ prompts:
       - Tipo de documento (conta de energia, conta de água, etc.).
     response_schema: ProofOfResidenceResponseDTO
 
-  - key: TERMO_REPRESENTACAO
+  - key: TERMO_DE_REPRESENTACAO
     description: Prompt para extração de dados do Termo de Representação.
     system_prompt: $BASE_SYSTEM_PROMPT
     prompt: |
@@ -174,7 +171,7 @@ prompts:
       - Assinatura do pescador.
     response_schema: RepresentationTermResponseDTO
 
-  - key: GPS
+  - key: GPS_E_COMPROVANTE
     description: Prompt para extração de dados da Guia da Previdência Social (GPS).
     system_prompt: $BASE_SYSTEM_PROMPT
     prompt: |
@@ -226,6 +223,35 @@ prompts:
 
       ⚙️ Finalidade:
       Confirmar se o documento de identidade (CIN, RG, CNH ou CPF) está presente e legível na pasta do pescador.
-
-      A IA **não precisa extrair campos**, apenas verificar a presença do documento e indicar se ele é válido.
     response_schema: RegistrationDocumentResponseDTO
+
+  - key: PROCURACAO
+    description: Prompt para extraçao de dados da Procuração.
+    system_prompt: $BASE_SYSTEM_PROMPT
+    prompt: |
+      A procuração é um documento legal que confere poderes a um representante (advogado)
+      para agir em nome do outorgante (pescador) em processos administrativos e judiciais.
+
+      Do ortogante:
+      - Nome completo do outorgante (pescador);
+      - CPF do outorgante;
+      - Estado civil do outorgante (se disponível);
+      - Endereço completo do outorgante (se disponível);
+      - Telefone do outorgante (se disponível);
+
+      Dos outorgados:
+      - Nome completo do(s) outorgado(s) (advogado(s));
+      - OAB do(s) outorgado(s) (se disponível);
+      - CPF do(s) outorgado(s) (se disponível);
+    response_schema: PowerOfAttorneyResponseDTO
+
+  - key: OUTRO
+    description: Prompt para verificação de documentos não classificados.
+    system_prompt: $BASE_SYSTEM_PROMPT
+    prompt: |
+      Este documento não se enquadra em nenhuma das categorias padrão de documentos jurídicos e previdenciários brasileiras.
+
+      ⚙️ Finalidade:
+      Identificar documentos que não correspondem às categorias conhecidas (ex.: CNIS, RGP, CAEPF, etc.)
+      e classificá-los como "Outro Documento".
+    response_schema: OtherResponseDTO
