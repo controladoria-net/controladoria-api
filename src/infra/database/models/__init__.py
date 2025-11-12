@@ -206,6 +206,7 @@ class DocumentExtractionModel(Base):
         unique=True,
     )
     document_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    # TODO: adionar model para cada tipo de documento com base no seu DTO (src/infra/external/dto/document_extraction_dto.py)
     extracted_payload: Mapped[dict] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

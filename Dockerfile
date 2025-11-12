@@ -9,4 +9,4 @@ RUN uv sync --frozen --no-cache
 
 EXPOSE 8000
 
-CMD ["bash", "-c", "alembic upgrade head && uvicorn src.infra.http.fastapi.app:app --host 0.0.0.0 --port 8000"]
+CMD ["bash", "-c", "uv run alembic upgrade head && uv run main.py"]

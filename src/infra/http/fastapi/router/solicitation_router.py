@@ -28,9 +28,9 @@ from src.domain.usecases.build_solicitation_dashboard_use_case import (
     BuildSolicitationDashboardUseCase,
 )
 from src.domain.usecases.document_classification_use_case import (
-    ClassificarDocumentosUseCase,
+    DocumentClassificationUseCase,
 )
-from src.domain.usecases.extract_data_use_case import ExtrairDadosUseCase
+from src.domain.usecases.extract_data_use_case import ExtractDataUseCase
 from src.infra.database.session import get_session
 from src.infra.factories.solicitation_factory import (
     create_classificar_documentos_usecase,
@@ -44,6 +44,7 @@ from src.infra.factories.solicitation_factory import (
 from src.infra.http.dto.general_response_dto import GeneralResponseDTO
 from src.infra.http.mapper.solicitacao_mapper import SolicitacaoMapper
 from src.infra.http.security.auth_decorator import AuthenticatedUser
+from src.infra.database.repositories.document_repository import DocumentRepository
 
 
 router = APIRouter(prefix="/solicitacao", tags=["Solicitações"])
@@ -64,7 +65,7 @@ async def classificar_documentos(
     session=Depends(get_session),
     current_user: AuthenticatedUserEntity = AuthenticatedUser,
 ):
-    use_case: ClassificarDocumentosUseCase = create_classificar_documentos_usecase(
+    use_case: DocumentClassificationUseCase = create_classificar_documentos_usecase(
         session
     )
     documents = [
@@ -104,10 +105,6 @@ async def extrair_dados(
     # Permite derivar document_ids a partir do solicitation_id quando não enviados
     doc_ids: Optional[List[str]] = payload.document_ids
     if (not doc_ids or len(doc_ids) == 0) and payload.solicitation_id:
-        from src.infra.database.repositories.document_repository import (
-            DocumentRepository,
-        )
-
         repo = DocumentRepository(session)
         docs = repo.list_by_solicitation(payload.solicitation_id)
         doc_ids = [d.document_id for d in docs]
@@ -125,7 +122,7 @@ async def extrair_dados(
             content=response.model_dump(),
         )
 
-    use_case: ExtrairDadosUseCase = create_extrair_dados_use_case(session)
+    use_case: ExtractDataUseCase = create_extrair_dados_use_case(session)
     result = use_case.execute(doc_ids)
     if result.is_left():
         error = result.get_left()

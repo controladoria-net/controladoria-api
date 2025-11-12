@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from typing import Callable, List, Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import date, datetime
+from typing import Any, Callable, Dict, List, Optional
+
+from pydantic import BaseModel
 
 from src.domain.core.either import Either, Left, Right
 from src.domain.core.errors import (
@@ -10,6 +14,7 @@ from src.domain.core.errors import (
     StorageError,
     UnsupportedDocumentError,
 )
+from src.domain.entities.document import DocumentClassification
 from src.domain.gateway.ia_gateway import IAGateway
 from src.domain.gateway.object_storage_gateway import IObjectStorageGateway
 from src.domain.repositories.document_extraction_repository import (
@@ -21,6 +26,7 @@ from src.domain.repositories.document_repository import (
     IDocumentRepository,
 )
 from src.domain.core import metrics
+from src.domain.core.concurrency import get_lock
 
 
 PromptResolver = Callable[[str], Optional[str]]
@@ -36,7 +42,7 @@ class ExtractionResult:
         self.solicitation_id = solicitation_id
 
 
-class ExtrairDadosUseCase:
+class ExtractDataUseCase:
     """Runs document extraction using configured AI prompts."""
 
     def __init__(
@@ -45,13 +51,14 @@ class ExtrairDadosUseCase:
         extraction_repository: IDocumentExtractionRepository,
         storage_gateway: IObjectStorageGateway,
         extraction_gateway: IAGateway,
-        descriptor_resolver: PromptResolver,
+        *,
+        max_workers: int | None = None,
     ) -> None:
         self._document_repository = document_repository
         self._extraction_repository = extraction_repository
         self._storage_gateway = storage_gateway
         self._extraction_gateway = extraction_gateway
-        self._descriptor_resolver = descriptor_resolver
+        self._max_workers = max(1, max_workers or 1)
 
     def execute(self, document_ids: List[str]) -> Either[Exception, ExtractionResult]:
         if not document_ids:
@@ -63,47 +70,33 @@ class ExtrairDadosUseCase:
         records: List[DocumentExtractionRecord] = []
         solicitation_id: Optional[str] = None
         mixed_solicitations = False
+        documents: List[DocumentMetadata] = []
         for document_id in document_ids:
-            metadata = self._document_repository.get_document(document_id)
-            if metadata is None:
+            document = self._document_repository.get_document(document_id)
+            if document is None:
                 metrics.increment("document_extraction_errors")
                 return Left(DocumentNotFoundError(document_id))
 
             if solicitation_id is None:
-                solicitation_id = metadata.solicitation_id
-            elif solicitation_id != metadata.solicitation_id:
+                solicitation_id = document.solicitation_id
+            elif solicitation_id != document.solicitation_id:
                 mixed_solicitations = True
 
-            descriptor = self._resolve_descriptor(metadata)
-            if descriptor is None:
-                # Documento não suportado: ignora e segue com os demais
-                metrics.increment("document_extraction_errors")
+            classification = DocumentClassification[document.classification]
+            if classification == DocumentClassification.OUTRO:
                 continue
+            documents.append(document)
 
-            try:
-                file_bytes = self._storage_gateway.download(metadata.s3_key)
-            except Exception as exc:  # pylint: disable=broad-except
-                metrics.increment("document_extraction_errors")
-                return Left(StorageError(str(exc)))
+        extraction_payloads = self._parallel_extract(documents)
+        if extraction_payloads.is_left():
+            return Left(extraction_payloads.get_left())
+        payload_map = extraction_payloads.get_right()
 
-            try:
-                payload = self._extraction_gateway.extract(
-                    document_type=metadata.classification or "unknown",
-                    document_name=metadata.file_name or metadata.document_id,
-                    mimetype=metadata.mimetype,
-                    file_bytes=file_bytes,
-                    descriptor=descriptor,
-                )
-            except UnsupportedDocumentError as exc:
-                metrics.increment("document_extraction_errors")
-                return Left(exc)
-            except Exception as exc:  # pylint: disable=broad-except
-                metrics.increment("document_extraction_errors")
-                return Left(ExtractionError(str(exc)))
-
+        for document in documents:
+            payload = payload_map[document.document_id]
             record = self._extraction_repository.upsert_extraction(
-                document_id=document_id,
-                document_type=metadata.classification or "unknown",
+                document_id=document.document_id,
+                document_type=document.classification or "unknown",
                 payload=payload,
             )
             records.append(record)
@@ -125,3 +118,81 @@ class ExtrairDadosUseCase:
         if not classification:
             return None
         return self._descriptor_resolver(classification)
+
+    def _parallel_extract(
+        self, documents: List[DocumentMetadata]
+    ) -> Either[Exception, Dict[str, dict]]:
+        if not documents:
+            return Right({})
+
+        payloads: Dict[str, dict] = {}
+        worker_count = min(self._max_workers, len(documents))
+        futures = {}
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
+            for document in documents:
+                futures[executor.submit(self._download_and_extract, document)] = (
+                    document
+                )
+
+            for future in as_completed(futures):
+                document = futures[future]
+                try:
+                    raw_payload = future.result()
+                    payloads[document.document_id] = self._ensure_serializable(
+                        raw_payload
+                    )
+                    metrics.increment("extract_tasks_completed")
+                except UnsupportedDocumentError as exc:
+                    metrics.increment("document_extraction_errors")
+                    self._cancel_futures(futures)
+                    return Left(exc)
+                except StorageError as exc:
+                    metrics.increment("document_extraction_errors")
+                    self._cancel_futures(futures)
+                    return Left(exc)
+                except ExtractionError as exc:
+                    metrics.increment("document_extraction_errors")
+                    self._cancel_futures(futures)
+                    return Left(exc)
+                except Exception as exc:  # pylint: disable=broad-except
+                    metrics.increment("document_extraction_errors")
+                    self._cancel_futures(futures)
+                    return Left(ExtractionError(str(exc)))
+
+        return Right(payloads)
+
+    def _download_and_extract(self, document: DocumentMetadata) -> dict:
+        lock = get_lock(document.document_id)
+        with lock:
+            try:
+                file_bytes = self._storage_gateway.download(document.s3_key)
+            except Exception as exc:  # pylint: disable=broad-except
+                raise StorageError(str(exc)) from exc
+
+            try:
+                return self._extraction_gateway.extract(
+                    document=document,
+                    file_bytes=file_bytes,
+                )
+            except UnsupportedDocumentError:
+                raise
+            except Exception as exc:  # pylint: disable=broad-except
+                raise ExtractionError(str(exc)) from exc
+
+    @staticmethod
+    def _cancel_futures(futures) -> None:
+        for future in futures:
+            future.cancel()
+
+    def _ensure_serializable(self, payload: Any) -> Any:
+        if isinstance(payload, BaseModel):
+            return self._ensure_serializable(payload.model_dump())
+        if isinstance(payload, dict):
+            return {
+                key: self._ensure_serializable(value) for key, value in payload.items()
+            }
+        if isinstance(payload, list):
+            return [self._ensure_serializable(item) for item in payload]
+        if isinstance(payload, (datetime, date)):
+            return payload.isoformat()
+        return payload

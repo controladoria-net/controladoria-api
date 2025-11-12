@@ -40,14 +40,12 @@ class EvaluateEligibilityUseCase:
         extraction_repository: IDocumentExtractionRepository,
         eligibility_repository: IEligibilityRepository,
         validator_gateway: IAGateway,
-        rules_provider: RulesProvider,
     ) -> None:
         self._solicitation_repository = solicitation_repository
         self._document_repository = document_repository
         self._extraction_repository = extraction_repository
         self._eligibility_repository = eligibility_repository
         self._validator_gateway = validator_gateway
-        self._rules_provider = rules_provider
 
     def execute(self, solicitation_id: str) -> Either[Exception, EligibilityRecord]:
         metrics.increment("eligibility_requests")

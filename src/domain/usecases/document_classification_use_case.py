@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 import io
-from typing import List, Sequence
+from typing import List, Sequence, Tuple
 from uuid import uuid4
 
 from src.domain.core.either import Either, Left, Right
@@ -36,6 +37,7 @@ ALLOWED_CONTENT_TYPES: Sequence[str] = (
 @dataclass
 class ClassificationResultDocument:
     document_id: str
+    document_name: str
     classification: DocumentClassification
 
 
@@ -45,21 +47,24 @@ class ClassificationResult:
     documents: List[ClassificationResultDocument]
 
 
-class ClassificarDocumentosUseCase:
+class DocumentClassificationUseCase:
     """Classifies documents, storing them in S3 and persisting metadata."""
 
     def __init__(
         self,
-        classificador_gateway: IAGateway,
+        ia_gateway: IAGateway,
         storage_gateway: IObjectStorageGateway,
         document_repository: IDocumentRepository,
         solicitation_repository: ISolicitationRepository,
+        *,
+        max_workers: int | None = None,
     ) -> None:
-        self._classificador_gateway = classificador_gateway
+        self._ia_gateway = ia_gateway
         self._storage_gateway = storage_gateway
         self._document_repository = document_repository
         self._solicitation_repository = solicitation_repository
         self._logger = get_logger(__name__)
+        self._max_workers = max(1, max_workers or 1)
 
     def execute(
         self,
@@ -86,6 +91,8 @@ class ClassificarDocumentosUseCase:
             solicitation_id=solicitation_id,
             documents=[],
         )
+
+        prepared_documents: List[Tuple[DocumentMetadata, ClassificationDocument]] = []
 
         for document in documents:
             if document.mimetype not in ALLOWED_CONTENT_TYPES:
@@ -120,26 +127,16 @@ class ClassificarDocumentosUseCase:
                 metrics.increment("document_storage_errors")
                 return Left(StorageError(str(exc)))
 
-            try:
-                gatewayClassificationResult = self._classificador_gateway.classificar(
-                    document
-                )
-            except Exception as exc:
-                gatewayClassificationResult = DocumentClassification.OUTRO
-                metrics.increment("document_classification_errors")
-                self._logger.warning(
-                    "Falha ao classificar '%s': %s",
-                    document.name,
-                    exc,
-                    exc_info=True,
-                )
-                continue
+            prepared_documents.append((metadata, document))
 
-            classification = gatewayClassificationResult.value
+        classified_pairs = self._classify_documents(prepared_documents)
+
+        for metadata, classification in classified_pairs:
             result.documents.append(
                 ClassificationResultDocument(
                     document_id=metadata.document_id,
-                    classification=classification,
+                    document_name=metadata.file_name,
+                    classification=classification.value,
                 )
             )
 
@@ -163,6 +160,41 @@ class ClassificarDocumentosUseCase:
         classified_count = len(result.documents)
         metrics.increment("documents_classified", classified_count)
         return Right(result)
+
+    def _classify_documents(
+        self,
+        prepared_documents: List[Tuple[DocumentMetadata, ClassificationDocument]],
+    ) -> List[Tuple[DocumentMetadata, DocumentClassification]]:
+        if not prepared_documents:
+            return []
+
+        worker_count = min(self._max_workers, len(prepared_documents))
+        results: List[Tuple[DocumentMetadata, DocumentClassification]] = []
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
+            future_map = {
+                executor.submit(self._ia_gateway.classify, document): (
+                    metadata,
+                    document,
+                )
+                for metadata, document in prepared_documents
+            }
+            for future in as_completed(future_map):
+                metadata, document = future_map[future]
+                try:
+                    classification = future.result()
+                except Exception as exc:  # pylint: disable=broad-except
+                    metrics.increment("document_classification_errors")
+                    self._logger.warning(
+                        "Falha ao classificar '%s': %s",
+                        document.name,
+                        exc,
+                        exc_info=True,
+                    )
+                    continue
+
+                metrics.increment("classify_tasks_completed")
+                results.append((metadata, classification))
+        return results
 
     @staticmethod
     def _build_storage_key(solicitation_id: str, filename: str) -> str:

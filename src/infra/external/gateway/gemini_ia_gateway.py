@@ -1,16 +1,25 @@
 from __future__ import annotations
-from io import BytesIO
+import functools
 import json
 import os
-import tempfile
-from typing import List
+from typing import Callable, List, TypeVar
 from functools import lru_cache
 
 import google.genai as genai
-from google.genai.types import Part
+from google.api_core import exceptions as google_exceptions
+from google.genai.types import Part, GenerateContentConfig, ThinkingConfig
+from google.genai import errors as genai_errors
+import requests
 from pydantic import ValidationError
 from dotenv import load_dotenv
-from PyPDF2 import PdfReader
+import yaml
+from tenacity import (
+    RetryCallState,
+    Retrying,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_random_exponential,
+)
 
 from src.domain.core.logger import get_logger
 from src.domain.gateway.ia_gateway import IAGateway
@@ -23,47 +32,82 @@ from src.domain.repositories.document_extraction_repository import (
     DocumentExtractionRecord,
 )
 from src.domain.repositories.solicitation_repository import SolicitationRecord
-from src.infra.external.prompts.prompt_classificador import PROMPT_MESTRE
+from src.domain.core import metrics
+from src.domain.core.concurrency import configure_ia_semaphore, ia_slot
+from src.infra.external.prompts.prompt import Prompt
+from src.infra.config.settings import (
+    get_concurrency_settings,
+    get_retry_settings,
+)
+
+
+T = TypeVar("T")
+
+
+class GeminiRateLimitError(RuntimeError):
+    """Internal marker for rate-limit retries."""
 
 
 class GeminiIAGateway(IAGateway):
     def __init__(self):
-        self.model_name: str = "gemini-2.0-flash"
-        self.generation_config: dict | None = {"response_mime_type": "application/json"}
+        self._model_name: str = "gemini-2.0-flash"
         self._logger = get_logger(__name__)
-        self.client = get_gemini_client()
+        self._client = get_gemini_client()
+        self._prompts = load_prompts_from_yaml()
+        self._concurrency_settings = get_concurrency_settings()
+        self._retry_settings = get_retry_settings()
+        configure_ia_semaphore(self._concurrency_settings.ia_max_in_flight)
+        retryable_google_errors = (
+            google_exceptions.GoogleAPIError,
+            getattr(
+                google_exceptions,
+                "GoogleAPICallError",
+                google_exceptions.GoogleAPIError,
+            ),
+            getattr(
+                google_exceptions, "ResourceExhausted", google_exceptions.GoogleAPIError
+            ),
+            getattr(
+                google_exceptions, "TooManyRequests", google_exceptions.GoogleAPIError
+            ),
+            getattr(
+                google_exceptions,
+                "ServiceUnavailable",
+                google_exceptions.GoogleAPIError,
+            ),
+        )
 
-    def classificar(self, document: ClassificationDocument) -> DocumentClassification:
+        self._retryable_exceptions = (
+            TimeoutError,
+            ConnectionError,
+            requests.RequestException,
+            *retryable_google_errors,
+            google_exceptions.RetryError,
+            GeminiRateLimitError,
+        )
+
+    def classify(self, document: ClassificationDocument) -> DocumentClassification:
         try:
-            if document.mimetype == "application/pdf":
-                reader = PdfReader(BytesIO(document.data))
-                text = " ".join(page.extract_text() or "" for page in reader.pages)
-                file_part = Part.from_text(text=text)
-            else:
-                file_part = Part.from_bytes(
-                    data=document.data, mime_type=document.mimetype
-                )
+            descriptor = self._prompts.get("DOCUMENT_CLASSIFIER")
 
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=[PROMPT_MESTRE, file_part],
-                config=self.generation_config,
-            )
+            def _call_model():
+                content = [
+                    {
+                        "role": "user",
+                        "parts": [
+                            {"text": descriptor.prompt},
+                            Part.from_bytes(
+                                data=document.data, mime_type=document.mimetype
+                            ),
+                        ],
+                    }
+                ]
+                return self._invoke_model(descriptor, content)
 
-            text = getattr(response, "text", None)
+            result = self._run_with_retry("retries_classify", _call_model)
+            classification = result.parsed.classification
 
-            try:
-                response_json = json.loads(text)
-            except json.JSONDecodeError:
-                s, e = text.find("{"), text.rfind("}")
-                if s != -1 and e != -1 and e > s:
-                    response_json = json.loads(text[s : e + 1])
-                else:
-                    raise
-
-            result = DocumentClassification[response_json["classification"]]
-            return result
-
+            return classification
         except (json.JSONDecodeError, ValidationError) as e:
             self._logger.warning(
                 "Resposta inválida do modelo (JSON/Schema): %s", e, exc_info=True
@@ -74,89 +118,103 @@ class GeminiIAGateway(IAGateway):
     def extract(
         self,
         *,
-        document_type: str,
-        document_name: str,
-        mimetype: str,
+        document: DocumentMetadata,
         file_bytes: bytes,
-        descriptor: str,
     ) -> dict:
-        descriptor_text = self._compose_prompt(document_type, descriptor)
-        temp_file_path = self._write_temp_file(document_name, file_bytes)
         try:
-            upload = self._client.files.upload(
-                file=temp_file_path,
-                config={
-                    "mime_type": mimetype or "application/octet-stream",
-                    "display_name": document_name,
-                },
+            # TODO: ajustar para quando recebe "Outro"
+            document_classification = (
+                DocumentClassification[document.classification]
+                or DocumentClassification.OUTRO
             )
+            descriptor = self._prompts.get(document_classification.name)
 
-            file_uri = getattr(upload, "uri", None) or getattr(upload, "name", None)
-            part = (
-                Part.from_uri(file_uri=file_uri, mime_type=mimetype)
-                if file_uri
-                else upload
-            )
-
-            response = self._client.models.generate_content(
-                model=self._model_name,
-                contents=[
+            def _call_model():
+                content = [
                     {
                         "role": "user",
                         "parts": [
-                            {"text": descriptor_text},
-                            part,
+                            {"text": descriptor.prompt},
+                            Part.from_bytes(
+                                data=file_bytes, mime_type=document.mimetype
+                            ),
                         ],
                     }
-                ],
-                config={"response_mime_type": "application/json"},
+                ]
+                return self._invoke_model(descriptor, content)
+
+            result = self._run_with_retry("retries_extract", _call_model)
+
+            return result.parsed
+        except Exception as exc:
+            # TODO: remover raise e retornar um Left do either
+            raise RuntimeError(
+                f"Falha ao extrair dados com o modelo Gemini para o documento {document.classification}: {exc}"
+            ) from exc
+
+    def _run_with_retry(self, metric_name: str, func: Callable[[], T]) -> T:
+        retry = Retrying(
+            reraise=True,
+            stop=stop_after_attempt(self._retry_settings.max_attempts),
+            wait=wait_random_exponential(
+                multiplier=max(self._retry_settings.wait_initial, 0.1),
+                max=self._retry_settings.wait_max,
+            ),
+            retry=retry_if_exception_type(self._retryable_exceptions),
+            before_sleep=self._before_sleep(metric_name),
+        )
+        for attempt in retry:
+            with attempt:
+                return func()
+        raise RuntimeError("Retry loop exited unexpectedly.")
+
+    def _before_sleep(self, metric_name: str) -> Callable[[RetryCallState], None]:
+        def _handler(retry_state: RetryCallState) -> None:
+            metrics.increment(metric_name)
+            exc = retry_state.outcome.exception() if retry_state.outcome else None
+            self._logger.warning(
+                "IA call retry (%s) attempt %s/%s due to %s",
+                metric_name,
+                retry_state.attempt_number,
+                self._retry_settings.max_attempts,
+                exc,
             )
 
-            json_payload = self._extract_json(response)
-            if not isinstance(json_payload, dict):
-                raise ValueError(
-                    "Resposta do modelo não está em formato JSON de objeto."
-                )
-            return json_payload
-        finally:
-            if temp_file_path and os.path.exists(temp_file_path):
-                os.unlink(temp_file_path)
+        return _handler
 
-    @staticmethod
-    def _compose_prompt(document_type: str, descriptor: str) -> str:
-        header = (
-            "Você é uma IA especializada em extração de dados para análise jurídica. "
-            "Retorne SEMPRE um JSON válido. Documento classificado como: "
+    def _invoke_model(self, descriptor: Prompt, content: List[dict]):
+        config = GenerateContentConfig(
+            response_mime_type=descriptor.response_mime_type,
+            response_schema=descriptor.response_schema,
+            system_instruction=descriptor.system_prompt,
+            temperature=0.2,
+            thinking_config=ThinkingConfig(thinking_budget=0),
         )
-        return f"{header}{document_type}.\n\n{descriptor}"
+        with ia_slot():
+            try:
+                return self._client.models.generate_content(
+                    model=self._model_name,
+                    contents=content,
+                    config=config,
+                )
+            except genai_errors.ClientError as exc:
+                if self._should_retry_client_error(exc):
+                    raise GeminiRateLimitError(str(exc)) from exc
+                raise
 
     @staticmethod
-    def _write_temp_file(document_name: str, file_bytes: bytes) -> str:
-        suffix = os.path.splitext(document_name)[1] if "." in document_name else ""
-        temp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-        try:
-            temp.write(file_bytes)
-            temp.flush()
-        finally:
-            temp.close()
-        return temp.name
-
-    @staticmethod
-    def _extract_json(response) -> dict:
-        text = getattr(response, "text", None)
-        if not text and getattr(response, "candidates", None):
-            candidate = response.candidates[0]
-            content = getattr(candidate, "content", None)
-            if content and getattr(content, "parts", None):
-                text = content.parts[0].text
-        if not text:
-            raise ValueError("Resposta vazia do modelo Gemini.")
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError as exc:
-            raise ValueError(
-                "Falha ao interpretar JSON retornado pelo modelo."
-            ) from exc
+    def _should_retry_client_error(exc: genai_errors.ClientError) -> bool:
+        status_code = getattr(exc, "status_code", None)
+        if status_code is None:
+            response_json = getattr(exc, "response_json", None)
+            if isinstance(response_json, dict):
+                status_code = response_json.get("error", {}).get("code")
+        message = getattr(exc, "message", str(exc))
+        if status_code in {429, 503}:
+            return True
+        if message and "RESOURCE_EXHAUSTED" in message.upper():
+            return True
+        return False
 
     # End Extract
 
@@ -220,7 +278,6 @@ class GeminiIAGateway(IAGateway):
         return {
             "document_id": metadata.document_id,
             "classification": metadata.classification,
-            "confidence": metadata.confidence,
             "mimetype": metadata.mimetype,
             "file_name": metadata.file_name,
             "uploaded_at": (
@@ -246,3 +303,20 @@ def get_gemini_client() -> genai.Client:
     if not api_key:
         raise ValueError("GOOGLE_API_KEY environment variable is not defined.")
     return genai.Client(api_key=api_key)
+
+
+@functools.cache
+def load_prompts_from_yaml(file_path: str = None) -> dict[str, Prompt]:
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    default_path = os.path.join(base_dir, "..", "..", "..", "..", "ia", "prompts.yml")
+
+    file_path = file_path or default_path
+
+    with open(file_path, "r", encoding="utf-8") as file:
+        data: dict = yaml.safe_load(file)
+
+    if not isinstance(data, dict) or "prompts" not in data:
+        raise ValueError("Invalid prompt YAML structure.")
+
+    prompts = map(Prompt.from_dict, data.get("prompts", []))
+    return {prompt.key: prompt for prompt in prompts}
