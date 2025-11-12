@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Annotated, Literal
 from datetime import date
 
@@ -425,9 +425,30 @@ class BiometryResponseDTO(BaseModel):
         Field(
             ...,
             description="Situação da biometria, geralmente vem acompanhada da frase 'Seu título eleitorral está ...'",
-            examples=["REGULAR", "IRREGULAR"],
         ),
     ]
+
+    @field_validator("situacao", mode="before")
+    @classmethod
+    def _ensure_single_status(cls, value):
+        """Gemini às vezes retorna lista/dict; normaliza para string única."""
+        if isinstance(value, list):
+            for item in value:
+                if isinstance(item, str) and item.strip():
+                    return item.strip()
+        if isinstance(value, dict):
+            for key in ("value", "situacao"):
+                candidate = value.get(key)
+                if isinstance(candidate, str) and candidate.strip():
+                    return candidate.strip()
+            examples = value.get("examples")
+            if isinstance(examples, list):
+                for item in examples:
+                    if isinstance(item, str) and item.strip():
+                        return item.strip()
+        if isinstance(value, str):
+            return value.strip()
+        return value
 
 
 class DeclaracaoFiliacaoResponseDTO(BaseModel):

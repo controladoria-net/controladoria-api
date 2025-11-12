@@ -52,11 +52,31 @@ class GeminiIAGateway(IAGateway):
         self._concurrency_settings = get_concurrency_settings()
         self._retry_settings = get_retry_settings()
         configure_ia_semaphore(self._concurrency_settings.ia_max_in_flight)
+        retryable_google_errors = (
+            google_exceptions.GoogleAPIError,
+            getattr(
+                google_exceptions,
+                "GoogleAPICallError",
+                google_exceptions.GoogleAPIError,
+            ),
+            getattr(
+                google_exceptions, "ResourceExhausted", google_exceptions.GoogleAPIError
+            ),
+            getattr(
+                google_exceptions, "TooManyRequests", google_exceptions.GoogleAPIError
+            ),
+            getattr(
+                google_exceptions,
+                "ServiceUnavailable",
+                google_exceptions.GoogleAPIError,
+            ),
+        )
+
         self._retryable_exceptions = (
             TimeoutError,
             ConnectionError,
             requests.RequestException,
-            google_exceptions.GoogleAPIError,
+            *retryable_google_errors,
             google_exceptions.RetryError,
         )
 

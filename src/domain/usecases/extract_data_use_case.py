@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Callable, Dict, List, Optional
+from datetime import date, datetime
+from typing import Any, Callable, Dict, List, Optional
+
+from pydantic import BaseModel
 
 from src.domain.core.either import Either, Left, Right
 from src.domain.core.errors import (
@@ -130,7 +133,10 @@ class ExtractDataUseCase:
             for future in as_completed(futures):
                 document = futures[future]
                 try:
-                    payloads[document.document_id] = future.result()
+                    raw_payload = future.result()
+                    payloads[document.document_id] = self._ensure_serializable(
+                        raw_payload
+                    )
                     metrics.increment("extract_tasks_completed")
                 except UnsupportedDocumentError as exc:
                     metrics.increment("document_extraction_errors")
@@ -173,3 +179,16 @@ class ExtractDataUseCase:
     def _cancel_futures(futures) -> None:
         for future in futures:
             future.cancel()
+
+    def _ensure_serializable(self, payload: Any) -> Any:
+        if isinstance(payload, BaseModel):
+            return self._ensure_serializable(payload.model_dump())
+        if isinstance(payload, dict):
+            return {
+                key: self._ensure_serializable(value) for key, value in payload.items()
+            }
+        if isinstance(payload, list):
+            return [self._ensure_serializable(item) for item in payload]
+        if isinstance(payload, (datetime, date)):
+            return payload.isoformat()
+        return payload
