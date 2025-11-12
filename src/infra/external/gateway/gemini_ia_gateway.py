@@ -8,6 +8,7 @@ from functools import lru_cache
 import google.genai as genai
 from google.api_core import exceptions as google_exceptions
 from google.genai.types import Part, GenerateContentConfig, ThinkingConfig
+from google.genai import errors as genai_errors
 import requests
 from pydantic import ValidationError
 from dotenv import load_dotenv
@@ -41,6 +42,10 @@ from src.infra.config.settings import (
 
 
 T = TypeVar("T")
+
+
+class GeminiRateLimitError(RuntimeError):
+    """Internal marker for rate-limit retries."""
 
 
 class GeminiIAGateway(IAGateway):
@@ -78,6 +83,7 @@ class GeminiIAGateway(IAGateway):
             requests.RequestException,
             *retryable_google_errors,
             google_exceptions.RetryError,
+            GeminiRateLimitError,
         )
 
     def classify(self, document: ClassificationDocument) -> DocumentClassification:
@@ -96,18 +102,7 @@ class GeminiIAGateway(IAGateway):
                         ],
                     }
                 ]
-                with ia_slot():
-                    return self._client.models.generate_content(
-                        model=self._model_name,
-                        contents=content,
-                        config=GenerateContentConfig(
-                            response_mime_type=descriptor.response_mime_type,
-                            response_schema=descriptor.response_schema,
-                            system_instruction=descriptor.system_prompt,
-                            temperature=0.2,
-                            thinking_config=ThinkingConfig(thinking_budget=0),
-                        ),
-                    )
+                return self._invoke_model(descriptor, content)
 
             result = self._run_with_retry("retries_classify", _call_model)
             classification = result.parsed.classification
@@ -128,9 +123,10 @@ class GeminiIAGateway(IAGateway):
     ) -> dict:
         try:
             # TODO: ajustar para quando recebe "Outro"
-            document_classification = DocumentClassification[
-                document.classification or "OUTRO"
-            ]
+            document_classification = (
+                DocumentClassification[document.classification]
+                or DocumentClassification.OUTRO
+            )
             descriptor = self._prompts.get(document_classification.name)
 
             def _call_model():
@@ -145,18 +141,7 @@ class GeminiIAGateway(IAGateway):
                         ],
                     }
                 ]
-                with ia_slot():
-                    return self._client.models.generate_content(
-                        model=self._model_name,
-                        contents=content,
-                        config=GenerateContentConfig(
-                            response_mime_type=descriptor.response_mime_type,
-                            response_schema=descriptor.response_schema,
-                            system_instruction=descriptor.system_prompt,
-                            temperature=0.2,
-                            thinking_config=ThinkingConfig(thinking_budget=0),
-                        ),
-                    )
+                return self._invoke_model(descriptor, content)
 
             result = self._run_with_retry("retries_extract", _call_model)
 
@@ -196,6 +181,40 @@ class GeminiIAGateway(IAGateway):
             )
 
         return _handler
+
+    def _invoke_model(self, descriptor: Prompt, content: List[dict]):
+        config = GenerateContentConfig(
+            response_mime_type=descriptor.response_mime_type,
+            response_schema=descriptor.response_schema,
+            system_instruction=descriptor.system_prompt,
+            temperature=0.2,
+            thinking_config=ThinkingConfig(thinking_budget=0),
+        )
+        with ia_slot():
+            try:
+                return self._client.models.generate_content(
+                    model=self._model_name,
+                    contents=content,
+                    config=config,
+                )
+            except genai_errors.ClientError as exc:
+                if self._should_retry_client_error(exc):
+                    raise GeminiRateLimitError(str(exc)) from exc
+                raise
+
+    @staticmethod
+    def _should_retry_client_error(exc: genai_errors.ClientError) -> bool:
+        status_code = getattr(exc, "status_code", None)
+        if status_code is None:
+            response_json = getattr(exc, "response_json", None)
+            if isinstance(response_json, dict):
+                status_code = response_json.get("error", {}).get("code")
+        message = getattr(exc, "message", str(exc))
+        if status_code in {429, 503}:
+            return True
+        if message and "RESOURCE_EXHAUSTED" in message.upper():
+            return True
+        return False
 
     # End Extract
 
