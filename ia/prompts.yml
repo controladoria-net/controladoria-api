@@ -200,6 +200,9 @@ prompts:
       - Município e estado de cadastro;
       - Frase “ELEITOR/ELEITORA COM BIOMETRIA COLETADA” ou equivalente;
       - Data de emissão (caso conste).
+      Instruções específicas para o campo **situacao**:
+      - Deve conter **apenas um** string literal, exatamente "REGULAR" ou "IRREGULAR".
+      - Nunca use listas, arrays ou múltiplos valores; escolha somente o status mais apropriado.
     response_schema: BiometryResponseDTO
 
   - key: REAP
