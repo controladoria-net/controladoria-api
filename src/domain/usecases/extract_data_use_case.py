@@ -82,6 +82,9 @@ class ExtractDataUseCase:
             elif solicitation_id != document.solicitation_id:
                 mixed_solicitations = True
 
+            classification = DocumentClassification[document.classification]
+            if classification == DocumentClassification.OUTRO:
+                continue
             documents.append(document)
 
         extraction_payloads = self._parallel_extract(documents)
@@ -127,9 +130,6 @@ class ExtractDataUseCase:
         futures = {}
         with ThreadPoolExecutor(max_workers=worker_count) as executor:
             for document in documents:
-                classification = DocumentClassification[document.classification]
-                if classification == DocumentClassification.OUTRO:
-                    continue
                 futures[executor.submit(self._download_and_extract, document)] = (
                     document
                 )
