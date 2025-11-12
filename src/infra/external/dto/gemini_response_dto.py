@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, field_validator
-from typing import List, Optional, Annotated, Literal
+from typing import Any, List, Optional, Annotated, Literal
 from datetime import date
 
 from src.domain.entities.document import DocumentClassification
@@ -555,7 +555,7 @@ class OtherResponseDTO(BaseModel):
         Field(None, description="Tipo do documento extraído, se identificado"),
     ]
     informacoes_adicionais: Annotated[
-        Optional[dict[str, str]],
+        Optional[Any],
         Field(None, description="Outras informações relevantes extraídas do documento"),
     ]
 

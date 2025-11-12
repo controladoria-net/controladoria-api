@@ -14,6 +14,7 @@ from src.domain.core.errors import (
     StorageError,
     UnsupportedDocumentError,
 )
+from src.domain.entities.document import DocumentClassification
 from src.domain.gateway.ia_gateway import IAGateway
 from src.domain.gateway.object_storage_gateway import IObjectStorageGateway
 from src.domain.repositories.document_extraction_repository import (
@@ -126,6 +127,9 @@ class ExtractDataUseCase:
         futures = {}
         with ThreadPoolExecutor(max_workers=worker_count) as executor:
             for document in documents:
+                classification = DocumentClassification[document.classification]
+                if classification == DocumentClassification.OUTRO:
+                    continue
                 futures[executor.submit(self._download_and_extract, document)] = (
                     document
                 )

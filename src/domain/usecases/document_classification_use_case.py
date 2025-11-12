@@ -37,6 +37,7 @@ ALLOWED_CONTENT_TYPES: Sequence[str] = (
 @dataclass
 class ClassificationResultDocument:
     document_id: str
+    document_name: str
     classification: DocumentClassification
 
 
@@ -134,6 +135,7 @@ class DocumentClassificationUseCase:
             result.documents.append(
                 ClassificationResultDocument(
                     document_id=metadata.document_id,
+                    document_name=metadata.file_name,
                     classification=classification.value,
                 )
             )
